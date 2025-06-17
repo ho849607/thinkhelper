@@ -1,235 +1,369 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>ThinkHelper - 문장 추천 자동 완성 + GPT</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>ThinkHelper</title>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
-  <!-- Google Custom Search Engine 스크립트 추가 -->
-  <script async src="https://cse.google.com/cse.js?cx=d69016b96d46e4684"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js"></script>
+
   <style>
-    body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
+    :root {
+      --pr: #1976d2;
+      --pl: #e3f2fd;
+      --ph: #bbdefb;
+      --bg: #f4f4f4;
+      --fg: #333;
+      --box: #fff;
+      --bd: #ccc;
+      --dbg: #1e1e1e;
+      --dfg: #ddd;
+      --dbox: #2a2a2a;
+      --succ: #4caf50;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system,Segoe UI,Roboto,sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      transition: .3s;
+    }
+    body.dark {
+      background: var(--dbg);
+      color: var(--dfg);
+    }
     header {
-      background: #1976d2; color: white; padding: 16px;
-      display: flex; justify-content: space-between; align-items: center;
+      padding: .6rem 1rem;
+      background: var(--pr);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .nav-tabs { display: flex; gap: 10px; }
-    .nav-tabs button {
-      background: white; color: #1976d2; border: none;
-      padding: 10px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;
-    }
-    .nav-tabs button:hover { background: #e2e2e2; }
-    .container {
-      max-width: 960px; margin: 20px auto; background: white;
-      padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      min-height: 80vh;
-    }
+    header h1 { margin: 0; font-size: 1.2rem; }
     .btn {
-      padding: 8px 14px; background: #1976d2; color: #fff;
-      border: none; border-radius: 4px; cursor: pointer; margin-right: 8px;
+      margin-left: .5rem;
+      padding: .4rem .8rem;
+      background: #fff;
+      color: var(--pr);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: .2s;
     }
-    .btn:hover { background: #1257a0; }
-    .inline-controls { margin-bottom: 10px; }
+    .btn:hover { background: var(--pl); }
+    body.dark .btn { background: var(--dbox); color: var(--pr); }
+    body.dark .btn:hover { background: var(--ph); }
+
+    main { display: flex; height: calc(100vh - 50px); }
+    aside {
+      width: 200px;
+      padding: .8rem;
+      background: var(--pl);
+      border-right: 1px solid var(--bd);
+      overflow-y: auto;
+    }
+    body.dark aside { background: var(--dbox); }
+    #docList { list-style: none; padding: 0; margin: 0; font-size: .9rem; }
+    #docList li {
+      padding: .5rem;
+      border-bottom: 1px dashed var(--bd);
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    #docList li:hover { background: var(--pl); }
+    .doc-del { margin-left: .5rem; color: #999; cursor: pointer; }
+    .doc-del:hover { color: #f44336; }
+
+    section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      overflow: hidden;
+      background: var(--box);
+    }
+    body.dark section { background: var(--dbox); }
+
+    /* CKEditor */
     #editor {
-      min-height: 300px; border: 1px solid #ccc; border-radius: 4px;
-      padding: 10px; margin-bottom: 10px; background: white;
+      flex: 1;
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      padding: .8rem;
+      background: inherit;
+      color: inherit;
+      overflow: auto;
     }
-    #charCount { float: right; font-size: 0.9rem; color: #666; }
-    #suggestionBox {
-      position: absolute; z-index: 9999; background: #fff;
-      border: 1px solid #ccc; max-height: 150px; overflow-y: auto;
-      padding: 5px; display: none; font-size: 0.95rem;
+    .ck-editor__editable_inline { min-height: 50vh !important; }
+
+    #charCount { text-align: right; margin-top: .5rem; color: var(--pr); }
+
+    /* 검색창 (인라인) */
+    #inlineSearch {
+      display: flex;
+      gap: .5rem;
+      margin-top: 1rem;
     }
-    .suggestion-item { padding: 6px 12px; cursor: pointer; }
-    .suggestion-item:hover { background-color: #e0f0ff; }
-    #chatContainer {
-      display: none; border: 1px solid #ccc; border-radius: 4px;
-      background: #f9f9f9; padding: 10px; margin-top: 20px;
-      max-height: 250px; overflow-y: auto;
+    #inlineSearch input {
+      flex: 1;
+      padding: .6rem;
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      font-size: 1rem;
+      background: inherit;
+      color: inherit;
     }
-    .chat-message {
-      padding: 8px 12px; border-radius: 4px; margin-bottom: 5px;
+    #autocomplete {
+      list-style: none;
+      padding: 0;
+      margin: .5rem 0 0 0;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      display: none;
+      background: var(--box);
+      color: inherit;
+      position: relative;
+      z-index: 10;
+    }
+    #autocomplete li {
+      padding: .5rem;
+      cursor: pointer;
+      border-bottom: 1px dashed var(--bd);
+    }
+    #autocomplete li:hover { background: var(--pl); }
+
+    /* Chat */
+    #chatPanel {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      width: 300px;
+      height: 360px;
+      background: var(--box);
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      box-shadow: 0 3px 8px rgba(0,0,0,.2);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 100;
+    }
+    body.dark #chatPanel { background: var(--dbox); border-color: var(--dbox); }
+    #chatLog {
+      flex: 1;
+      padding: .5rem;
+      overflow-y: auto;
+      font-size: .85rem;
+    }
+    .chatMsg {
+      margin: .3rem 0;
+      padding: .4rem;
+      border-radius: 4px;
       word-break: break-word;
     }
-    .chat-message.user { background-color: #e2f0cb; text-align: right; }
-    .chat-message.gpt { background-color: #f0f0f0; text-align: left; }
-    .chat-input {
-      width: 100%; padding: 10px; margin-top: 10px;
-      border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+    .chatMsg.user { background: var(--pl); text-align: right; }
+    .chatMsg.ai   { background: #eee; text-align: left; }
+    #chatInput {
+      border-top: 1px solid var(--bd);
+      padding: .5rem;
+      width: 100%;
+      box-sizing: border-box;
+      outline: none;
+      background: inherit;
+      color: inherit;
     }
-    /* Google CSE 스타일 조정 (선택 사항) */
-    .gcse-search { margin-top: 20px; }
+
+    footer {
+      padding: .5rem;
+      text-align: center;
+      font-size: .8rem;
+      color: #666;
+      border-top: 1px solid var(--bd);
+    }
   </style>
 </head>
 <body>
   <header>
     <h1>ThinkHelper</h1>
-    <div class="nav-tabs">
-      <button onclick="saveDoc()">💾 문서 저장</button>
+    <div>
+      <button class="btn" id="themeToggle">🌙</button>
+      <button class="btn" id="saveBtn">💾</button>
+      <button class="btn" id="chatToggle">💬</button>
     </div>
   </header>
 
-  <div class="container">
-    <div class="inline-controls">
-      <span id="charCount">0자</span>
-    </div>
-    <div id="editor">여기에 문서를 작성하세요...</div>
-    <div id="suggestionBox"></div>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-      <button class="btn" onclick="toggleChat()">💬 GPT 채팅 열기</button>
-    </div>
-    <div id="chatContainer">
-      <div id="chatLog"></div>
-      <input type="text" id="chatInput" class="chat-input" placeholder="GPT에게 질문하세요..." />
-    </div>
-    <!-- Google Custom Search 검색창 추가 -->
-    <div class="gcse-search"></div>
+  <main>
+    <aside>
+      <h3>문서 목록</h3>
+      <ul id="docList"><li style="color:#777">문서 없음</li></ul>
+    </aside>
+    <section>
+      <div id="editor">여기에 글을 입력하세요…</div>
+      <div id="charCount">0자</div>
+
+      <div id="inlineSearch">
+        <input id="searchInput" placeholder="검색어 입력…" autocomplete="off">
+      </div>
+      <ul id="autocomplete"></ul>
+    </section>
+  </main>
+
+  <div id="chatPanel">
+    <div id="chatLog"></div>
+    <input id="chatInput" placeholder="Enter로 전송">
   </div>
 
+  <footer>⚠️ AI는 실수할 수 있으니 중요한 내용은 반드시 확인하세요!</footer>
+
   <script>
-    const SUGGEST_API = "";
-    const GPT_API = "";
-    let editorInstance;
-    const suggestionBox = document.getElementById("suggestionBox");
+  document.addEventListener("DOMContentLoaded",()=>{
 
-    window.onload = () => {
-      ClassicEditor.create(document.querySelector("#editor")).then(editor => {
-        editorInstance = editor;
-        editor.model.document.on("change:data", updateCharCount);
+    // 1) 환경설정
+    // 👈 수정된 부분! 새 프로젝트 ID로 변경!
+    const firebaseConfig = { apiKey:"●●●", authDomain:"thinkhelper-v2.firebaseapp.com" }; 
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
-        editor.editing.view.document.on("keydown", async (evt, data) => {
-          const lastWord = getLastWord(editorInstance.getData());
-          if (data.key === "Tab" && suggestionBox.style.display === "block") {
-            evt.preventDefault();
-            applySuggestion();
-            return;
-          }
-
-          if (lastWord.length > 1) {
-            const suggestions = await fetchSuggestions(lastWord);
-            const rect = document.querySelector("#editor").getBoundingClientRect();
-            showSuggestions(suggestions, rect.left + 30, rect.top + 260);
-          } else {
-            suggestionBox.style.display = "none";
-          }
-        });
-      });
-
-      // GPT 채팅창 Enter 키 이벤트 추가
-      document.getElementById("chatInput").addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          handleGPTInput(document.getElementById("chatInput").value);
-        }
-      });
+    // 2) 엔드포인트 판별
+    function baseURL(){
+      const h=location.hostname;
+      if(h.endsWith(".web.app")||h.endsWith(".firebaseapp.com")) return "/api";
+      // 👈 수정된 부분! 새 프로젝트 ID로 변경!
+      if(h.includes("localhost")) return "http://localhost:5001/thinkhelper-v2/asia-northeast3/api";
+      // 👈 수정된 부분! 새 프로젝트 ID로 변경!
+      return "https://asia-northeast3-thinkhelper-v2.cloudfunctions.net/api";
+    }
+    const API = {
+      suggestGoogle: baseURL()+"/suggestGoogle",
+      search:        baseURL()+"/search",
+      gpt:           baseURL()+"/gpt"
     };
 
-    function updateCharCount() {
-      const text = editorInstance.getData().replace(/<[^>]*>/g, '').trim();
-      document.getElementById("charCount").textContent = `${text.length}자`;
-    }
+    // 3) 헬퍼
+    const $=id=>document.getElementById(id);
+    const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}};
 
-    function getLastWord(html) {
-      const text = html.replace(/<[^>]*>/g, "").trim();
-      const words = text.split(/\s+/);
-      return words.length > 0 ? words[words.length - 1] : "";
-    }
-
-    async function fetchSuggestions(keyword) {
-      try {
-        const res = await fetch(SUGGEST_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyword })
+    // 4) CKEditor
+    let editor;
+    ClassicEditor.create($("editor"))
+      .then(ed=>{
+        editor=ed;
+        ed.model.document.on("change:data",()=>{
+          const txt=ed.getData().replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();
+          $("charCount").textContent=txt.length+"자";
+          unsaved=true;
         });
-        const data = await res.json();
-        return data.suggestions || [];
-      } catch (e) {
-        console.error("Suggestion fetch error:", e);
-        return [];
-      }
-    }
+        loadDocs();
+      }).catch(console.error);
 
-    function showSuggestions(list, x, y) {
-      suggestionBox.innerHTML = "";
-      if (list.length === 0) {
-        suggestionBox.style.display = "none";
-        return;
-      }
-      list.forEach(s => {
-        const div = document.createElement("div");
-        div.className = "suggestion-item";
-        div.textContent = typeof s === "string" ? s : s.text;
-        div.title = typeof s === "string" ? "추천 문장" : s.source; // 출처 툴팁
-        div.onclick = () => {
-          insertToEditor(typeof s === "string" ? s : `${s.text} (${s.source})`);
-          suggestionBox.style.display = "none";
-        };
-        suggestionBox.appendChild(div);
-      });
-      suggestionBox.style.left = `${x}px`;
-      suggestionBox.style.top = `${y}px`;
-      suggestionBox.style.display = "block";
-    }
-
-    function insertToEditor(text) {
-      editorInstance.model.change(writer => {
-        const selection = editorInstance.model.document.selection;
-        writer.insertText(text + " ", selection.getFirstPosition());
+    // 5) 문서저장 & 목록
+    let unsaved=false;
+    function loadDocs(){
+      const ul=$("docList"); ul.innerHTML="";
+      const keys=Object.keys(localStorage).filter(k=>k.startsWith("doc-")).sort().reverse();
+      if(!keys.length){ul.innerHTML="<li style='color:#777'>문서 없음</li>";return;}
+      keys.forEach(k=>{
+        const {title,html}=JSON.parse(localStorage.getItem(k));
+        const li=document.createElement("li"); li.textContent=title;
+        li.onclick=()=>{editor.setData(html);unsaved=false;};
+        const del=document.createElement("span"); del.textContent="❌";del.className="doc-del";
+        del.onclick=e=>{e.stopPropagation();localStorage.removeItem(k);loadDocs();};
+        li.append(del); ul.append(li);
       });
     }
-
-    function applySuggestion() {
-      const firstItem = suggestionBox.querySelector(".suggestion-item");
-      if (firstItem) {
-        insertToEditor(firstItem.textContent);
-        suggestionBox.style.display = "none";
-      }
+    function saveDoc(){
+      if(!editor) return;
+      const html=editor.getData();
+      const plain=html.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();
+      const title=(plain.split(/[\n\.]/)[0]||"무제").slice(0,30);
+      localStorage.setItem("doc-"+Date.now(),JSON.stringify({title,html}));
+      unsaved=false; loadDocs();
     }
+    $("saveBtn").onclick=saveDoc;
+    // 창 닫힐 때 저장 제안
+    window.addEventListener("beforeunload",e=>{
+      if(!unsaved) return;
+      e.preventDefault(); e.returnValue="";
+    });
 
-    function saveDoc() {
-      const content = editorInstance.getData().trim();
-      if (!content) return alert("저장할 내용이 없습니다.");
-      const record = { id: Date.now(), content, date: new Date().toLocaleString() };
-      const existing = JSON.parse(localStorage.getItem("sp_history") || "[]");
-      existing.push(record);
-      localStorage.setItem("sp_history", JSON.stringify(existing));
-      alert("문서 저장 완료");
-    }
+    // 6) 테마
+    $("themeToggle").onclick=()=>{
+      document.body.classList.toggle("dark");
+      localStorage.setItem("th_dark",document.body.classList.contains("dark"));
+    };
+    if(localStorage.getItem("th_dark")==="true") $("themeToggle").click();
 
-    function toggleChat() {
-      const chat = document.getElementById("chatContainer");
-      chat.style.display = (chat.style.display === "none" || chat.style.display === "") ? "block" : "none";
-      const chatLog = document.getElementById("chatLog");
-      chatLog.scrollTop = chatLog.scrollHeight;
-    }
-
-    async function handleGPTInput(prompt) {
-      if (!prompt.trim()) return;
-      appendChat("user", prompt);
-      document.getElementById("chatInput").value = ""; // 입력창 초기화
-      try {
-        const res = await fetch(GPT_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: prompt })
+    // 7) inline 자동완성
+    const inp=$("searchInput"), ac=$("autocomplete");
+    inp.addEventListener("input",debounce(async()=>{
+      const q=inp.value.trim(); 
+      if(q.length<2){ac.style.display="none";return;}
+      try{
+        const r=await fetch(API.suggestGoogle+"?q="+encodeURIComponent(q));
+        const j=await r.json();
+        ac.innerHTML="";
+        (j.sug||[]).forEach(t=>{
+          const li=document.createElement("li"); li.textContent=t;
+          li.onclick=()=> runSearch(t);
+          ac.append(li);
         });
-        const data = await res.json();
-        const text = data?.response?.text || data?.candidates?.[0]?.content?.parts?.[0]?.text || "응답 없음";
-        const source = data?.response?.source || "Gemini";
-        appendChat("gpt", `${text} (${source})`);
-      } catch (e) {
-        console.error("GPT fetch error:", e);
-        appendChat("gpt", "GPT 호출 실패");
-      }
+        ac.style.display=j.sug&&j.sug.length?"block":"none";
+      }catch{ac.style.display="none";}
+    },300));
+
+    // 8) 검색 → 링크 삽입
+    async function runSearch(q){
+      inp.value=q; ac.style.display="none";
+      try{
+        const r=await fetch(API.search+"?q="+encodeURIComponent(q));
+        const j=await r.json();
+        (j.links||[]).forEach(item=>{
+          const a=`<a href="${item.link}" target="_blank">${DOMPurify.sanitize(item.title)}</a>`;
+          editor.model.change(w=>w.insertContent(editor.data.processor.toView(a)));
+        });
+      }catch(e){console.error("검색 오류:",e);}
+    }
+    inp.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){e.preventDefault();runSearch(inp.value.trim());}
+    });
+
+    // 9) ChatGPT (Gemini Chat)
+    $("chatToggle").onclick=()=>{$("chatPanel").style.display=$("chatPanel").style.display==="flex"?"none":"flex";};
+    $("chatInput").addEventListener("keydown",async e=>{
+      if(e.key!=="Enter" || e.isComposing) return;
+      e.preventDefault();
+      const q=e.target.value.trim(); if(!q) return; e.target.value="";
+      appendChat("user",q); appendChat("ai","⌛");
+      try{
+        // 👈 인증 토큰 추가!
+        const token = await auth.currentUser?.getIdToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if(token) headers.Authorization = 'Bearer ' + token;
+        
+        const r=await fetch(API.gpt,{method:"POST",headers,body:JSON.stringify({text:q})});
+        if(!r.ok) throw new Error((await r.json()).error); // 에러 처리 추가
+        const j=await r.json();
+        chatLog.lastChild.textContent=j.response?.text||"오류";
+      }catch(err){chatLog.lastChild.textContent="오류: "+err.message;}
+    });
+    function appendChat(role,txt){
+      const d=document.createElement("div");
+      d.className="chatMsg "+role; d.textContent=txt;
+      $("chatLog").append(d); $("chatLog").scrollTop=$("chatLog").scrollHeight;
     }
 
-    function appendChat(role, text) {
-      const div = document.createElement("div");
-      div.className = `chat-message ${role}`;
-      div.innerHTML = text;
-      const chatLog = document.getElementById("chatLog");
-      chatLog.appendChild(div);
-      chatLog.scrollTop = chatLog.scrollHeight;
-    }
+  });
   </script>
 </body>
 </html>
