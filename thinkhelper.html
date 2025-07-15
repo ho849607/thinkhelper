@@ -1,438 +1,395 @@
-<!-- public/index.html — ThinkHelper 2.5 (Cloud Run 버전, /api 포함) -->
+<!--  public/index.html — ThinkHelper 3.0 (PII masking + sentence suggestions) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>ThinkHelper 2.5</title>
+  <title>ThinkHelper 3.0</title>
   <link rel="icon" href="data:,">
 
   <!-- 라이브러리 -->
   <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js"></script>
 
-  <!-- ────────────── STYLE ────────────── -->
+  <!-- ───────── STYLE ───────── -->
   <style>
-    :root{
-      --primary:#1976d2; --primary-light:#e3f2fd; --primary-hover:#bbdefb;
-      --bg:#f4f4f4; --fg:#333; --box:#fff; --border:#ccc; --text-light:#fff;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{
-      height:100vh;display:flex;flex-direction:column;
-      font-family:-apple-system,Segoe UI,Roboto,sans-serif;
-      background:var(--bg);color:var(--fg);transition:background .3s,color .3s;
-    }
-    body.dark{background:#121212;color:#e0e0e0;}
-    body.dark header{background:#1f1f1f;} body.dark aside{background:#1b1b1b;}
-    body.dark section{background:#1e1e1e;}
-    body.dark #editor,body.dark input,body.dark select,body.dark .btn{
-      background:#2a2a2a;color:#e0e0e0;border-color:#444;
-    }
+  :root{
+    --primary:#1976d2;--primary-light:#e3f2fd;--primary-hover:#bbdefb;
+    --bg:#f4f4f4;--fg:#333;--box:#fff;--border:#ccc;--text-light:#fff;
+    --sug-bg:#e3f2fd;--sug-hover:#bbdefb;--sug-text:#000;
+  }
+  body.dark{--sug-bg:#ffcc80;--sug-hover:#ffb74d;--sug-text:#000;}
+  *{box-sizing:border-box;margin:0;padding:0}
 
-    /* ── Header / Side bar ── */
-    header{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:.6rem 1rem;background:var(--primary);color:var(--text-light);
-      position:sticky;top:0;z-index:100;
-    }
-    header h1{font-size:1.25rem;}
-    .btn{
-      margin-left:.45rem;padding:.35rem .75rem;border:none;border-radius:4px;
-      background:var(--box);color:var(--primary);cursor:pointer;transition:background .2s;
-    }
-    .btn:hover{background:var(--primary-light);}
-    .btn.tiny{padding:.2rem .4rem;font-size:.75rem;margin-left:0;}
+  body{height:100vh;display:flex;flex-direction:column;font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--fg);transition:background .3s,color .3s;}
+  body.dark{background:#121212;color:#e0e0e0}
+  body.dark header{background:#1f1f1f}body.dark aside{background:#1b1b1b}body.dark section{background:#1e1e1e}
+  body.dark #editor,body.dark input,body.dark select,body.dark .btn{background:#2a2a2a;color:#e0e0e0;border-color:#444}
 
-    main{flex:1;display:flex;min-height:0;}
-    aside{
-      width:220px;padding:.9rem;background:var(--primary-light);
-      border-right:1px solid var(--border);overflow:auto;
-    }
-    #docList{list-style:none;font-size:.9rem;}
-    #docList li{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:.5rem .2rem;border-bottom:1px dashed var(--border);cursor:pointer;
-    }
-    #docList li:hover{background:var(--primary-light);}
-    .doc-del{margin-left:.4rem;color:#888;cursor:pointer;}
-    .doc-del:hover{color:#f44336;}
+  header{display:flex;justify-content:space-between;align-items:center;padding:.6rem 1rem;
+         background:var(--primary);color:var(--text-light);position:sticky;top:0;z-index:100}
+  header h1{font-size:1.25rem}
+  .btn{margin-left:.45rem;padding:.35rem .75rem;border:none;border-radius:4px;background:var(--box);
+       color:var(--primary);cursor:pointer;transition:background .2s}
+  .btn:hover{background:var(--primary-light)}.btn.tiny{padding:.2rem .4rem;font-size:.75rem;margin-left:0}
 
-    /* ── Editor section ── */
-    section{
-      flex:1;display:flex;flex-direction:column;padding:1rem;background:var(--box);
-      position:relative;transition:height .25s;min-width:0;
-    }
-    section.collapsed{height:64px!important;}
-    #editor{
-      flex:1;border:1px solid var(--border);border-radius:4px;padding:.9rem;overflow:auto;
-      transition:height .25s,padding .25s,border .25s;background:inherit;color:inherit;
-    }
-    section.collapsed #editor{height:0;padding:0;border:none;overflow:hidden;}
-    .ck-editor__editable_inline{min-height:60vh!important;}
-    #charCount{text-align:right;margin-top:.45rem;font-size:.85rem;color:var(--primary);}
+  main{flex:1;display:flex;min-height:0}
+  aside{width:220px;padding:.9rem;background:var(--primary-light);border-right:1px solid var(--border);overflow:auto}
+  #docList{list-style:none;font-size:.9rem}
+  #docList li{display:flex;justify-content:space-between;align-items:center;padding:.5rem .2rem;
+              border-bottom:1px dashed var(--border);cursor:pointer}
+  #docList li:hover{background:var(--primary-light)}.doc-del{margin-left:.4rem;color:#888;cursor:pointer}
+  .doc-del:hover{color:#f44336}
 
-    /* ── Search / autocomplete ── */
-    #inlineSearch{display:flex;gap:.5rem;margin-top:1rem;position:relative;}
-    #inlineSearch input{
-      flex:1;padding:.55rem;font-size:1rem;border:1px solid var(--border);
-      border-radius:4px;background:inherit;color:inherit;
-    }
-    #autocomplete{
-      display:none;position:absolute;top:100%;left:0;right:0;z-index:25;
-      list-style:none;margin:.35rem 0 0;padding:0;max-height:160px;overflow:auto;
-      border:1px solid var(--border);border-radius:4px;background:var(--box);font-size:.9rem;
-    }
-    #autocomplete li{padding:.45rem .55rem;border-bottom:1px dashed var(--border);cursor:pointer;}
-    #autocomplete li:hover{background:var(--primary-light);}
+  section{flex:1;display:flex;flex-direction:column;padding:1rem;background:var(--box);
+          position:relative;transition:height .25s;min-width:0}
+  section.collapsed{height:64px!important}
+  #editor{flex:1;border:1px solid var(--border);border-radius:4px;padding:.9rem;
+          overflow:auto;background:inherit;color:inherit}
+  section.collapsed #editor{height:0;padding:0;border:none;overflow:hidden}
+  .ck-editor__editable_inline{min-height:60vh!important}
+  #charCount{text-align:right;margin-top:.45rem;font-size:.85rem;color:var(--primary)}
 
-    /* ── Inline suggestions ── */
-    #suggestions{
-      display:none;position:absolute;z-index:30;max-width:260px;max-height:200px;overflow:auto;
-      background:var(--box);border:1px solid var(--border);border-radius:6px;
-      padding:.35rem .5rem;box-shadow:0 2px 6px rgba(0,0,0,.15);font-size:.9rem;
-    }
-    .suggestion-item{
-      padding:.4rem .6rem;border-radius:4px;background:var(--primary-light);
-      cursor:pointer;white-space:nowrap;
-    }
-    .suggestion-item:hover,.suggestion-item.active{background:var(--primary-hover);}
+  #inlineSearch{display:flex;gap:.5rem;margin-top:1rem;position:relative}
+  #inlineSearch input{flex:1;padding:.55rem;font-size:1rem;border:1px solid var(--border);
+                      border-radius:4px;background:inherit;color:inherit}
+  #autocomplete{display:none;position:absolute;top:100%;left:0;right:0;z-index:25;list-style:none;margin:.35rem 0 0;
+                padding:0;max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:4px;
+                background:var(--box);font-size:.9rem}
+  #autocomplete li{padding:.45rem .55rem;border-bottom:1px dashed var(--border);cursor:pointer}
+  #autocomplete li:hover{background:var(--primary-light)}
 
-    /* ── Preview popup ── */
-    #previewPopup{
-      display:none;position:absolute;z-index:40;background:var(--box);
-      border:1px solid var(--border);border-radius:6px;box-shadow:0 3px 8px rgba(0,0,0,.2);
-      padding:.6rem;max-width:280px;
-    }
-    #previewPopup h4{margin-bottom:.5rem;font-size:1rem;}
-    #previewPopup button{
-      margin-top:.5rem;padding:.3rem .6rem;border:none;border-radius:4px;
-      background:var(--primary);color:#fff;cursor:pointer;
-    }
+  #suggestions{display:none;position:absolute;z-index:40;max-height:220px;overflow:auto;min-width:180px;
+               background:var(--sug-bg);border:1px solid var(--border);border-radius:6px;padding:.25rem 0;
+               box-shadow:0 3px 8px rgba(0,0,0,.2);font-size:.9rem}
+  .suggestion-item{padding:.4rem .8rem;border-bottom:1px dashed var(--border);cursor:pointer;color:var(--sug-text)}
+  .suggestion-item:last-child{border-bottom:none}
+  .suggestion-item:hover{background:var(--sug-hover)}
 
-    /* ── Chat panel ── */
-    #chatPanel{
-      display:none;position:fixed;bottom:1rem;right:1rem;width:360px;height:460px;
-      background:var(--box);border:1px solid var(--border);border-radius:6px;
-      box-shadow:0 3px 8px rgba(0,0,0,.2);flex-direction:column;overflow:hidden;z-index:300;
-    }
-    #chatHeader{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:.55rem;background:var(--primary);color:var(--text-light);
-    }
-    #chatLog{flex:1;overflow-y:auto;padding:.6rem;font-size:.85rem;}
-    .chatMsg{margin:.45rem 0;padding:.5rem .75rem;border-radius:6px;max-width:85%;word-break:break-word;}
-    .chatMsg.user{align-self:flex-end;background:var(--primary-light);}
-    .chatMsg.ai{align-self:flex-start;background:#eee;}
-    #chatInput{border:none;border-top:1px solid var(--border);
-               padding:.6rem;width:100%;background:inherit;color:inherit;outline:none;}
+  #previewPopup{display:none;position:absolute;z-index:50;background:var(--box);border:1px solid var(--border);
+                border-radius:6px;box-shadow:0 3px 8px rgba(0,0,0,.2);padding:.6rem;max-width:280px}
+  #previewPopup h4{margin-bottom:.5rem;font-size:1rem}
 
-    footer{text-align:center;padding:.6rem;font-size:.8rem;color:#666;border-top:1px solid var(--border);}
+  #chatPanel{display:none;position:fixed;bottom:1rem;right:1rem;width:360px;height:460px;background:var(--box);
+             border:1px solid var(--border);border-radius:6px;box-shadow:0 3px 8px rgba(0,0,0,.2);
+             flex-direction:column;overflow:hidden;z-index:300}
+  #chatHeader{display:flex;justify-content:space-between;align-items:center;padding:.55rem;background:var(--primary);
+              color:var(--text-light)}
+  #chatLog{flex:1;overflow-y:auto;padding:.6rem;font-size:.85rem}
+  .chatMsg{margin:.45rem 0;padding:.5rem .75rem;border-radius:6px;max-width:85%;word-break:break-word}
+  .chatMsg.user{align-self:flex-end;background:var(--primary-light)}.chatMsg.ai{align-self:flex-start;background:#eee}
+  #chatInput{border:none;border-top:1px solid var(--border);padding:.6rem;width:100%;background:inherit;color:inherit;outline:none}
+
+  footer{text-align:center;padding:.6rem;font-size:.8rem;color:#666;border-top:1px solid var(--border)}
   </style>
 </head>
 
 <body>
-  <!-- ───── Header ───── -->
-  <header>
-    <div>
-      <h1>ThinkHelper 2.5</h1>
-      <select id="modeSelect" aria-label="작성 모드">
-        <option value="basic">🛠 Basic</option>
-        <option value="journalist">📰 Journalist</option>
-        <option value="research">📑 Research</option>
-        <option value="law">⚖️ Legal</option>
-        <option value="dev">💻 Developer</option>
-      </select>
-    </div>
-    <div>
-      <button class="btn" id="foldBtn">📄 접기/펼치기</button>
-      <button class="btn" id="saveBtn">💾 저장</button>
-      <button class="btn" id="exportBtn">⬇️ 내보내기</button>
-      <button class="btn" id="chatBtn">💬 채팅</button>
-      <button class="btn" id="themeBtn">🌙 테마</button>
-    </div>
-  </header>
-
-  <!-- ───── Main ───── -->
-  <main>
-    <aside><h3>문서 목록</h3><ul id="docList"></ul></aside>
-    <section id="wrap">
-      <div id="editor"></div>
-      <div id="charCount">0자</div>
-
-      <div id="inlineSearch">
-        <input id="searchInput" placeholder="검색(/) 또는 Ctrl+K" autocomplete="off">
-        <button class="btn" id="searchBtn" aria-label="검색">🔍 검색</button>
-      </div>
-      <ul id="autocomplete"></ul>
-      <div id="suggestions"></div>
-      <div id="previewPopup"></div>
-    </section>
-  </main>
-
-  <!-- ───── Chat ───── -->
-  <div id="chatPanel" role="dialog" aria-modal="true">
-    <div id="chatHeader">💬 Gemini Chat<button class="btn" id="chatClose">✖︎ 닫기</button></div>
-    <div id="chatLog"></div>
-    <input id="chatInput" placeholder="Enter 로 전송">
+<header>
+  <div>
+    <h1>ThinkHelper 3.0</h1>
+    <select id="modeSelect">
+      <option value="basic">🛠 Basic</option><option value="journalist">📰 Journalist</option>
+      <option value="research">📑 Research</option><option value="law">⚖️ Legal</option>
+      <option value="dev">💻 Developer</option>
+    </select>
   </div>
+  <div>
+    <button class="btn" id="foldBtn">📄 접기/펼치기</button>
+    <button class="btn" id="saveBtn">💾 저장</button>
+    <button class="btn" id="exportBtn">⬇️ 내보내기</button>
+    <button class="btn" id="chatBtn">💬 채팅</button>
+    <button class="btn" id="themeBtn">🌙 테마</button>
+  </div>
+</header>
 
-  <footer>⚠️ AI 출력은 오류가 있을 수 있습니다. 중요한 내용은 반드시 검증하세요.</footer>
+<main>
+  <aside><h3>문서 목록</h3><ul id="docList"></ul></aside>
 
-  <!-- ────────────── SCRIPT ────────────── -->
-  <script>
-    /* ========= UTIL ========= */
-    const $ = id => document.getElementById(id);
-    const deb = (fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}};
+  <section id="wrap">
+    <div id="editor"></div><div id="charCount">0자</div>
 
-    /* ========= THEME ========= */
-    function setTheme(dark){
-      document.body.classList.toggle('dark',dark);
-      localStorage.setItem('theme',dark?'dark':'light');
-    }
-    (()=>{const s=localStorage.getItem('theme');
-      setTheme(s? s==='dark' : (new Date().getHours()>=18||new Date().getHours()<6));})();
-    $('themeBtn').onclick=()=>setTheme(!document.body.classList.contains('dark'));
+    <div id="inlineSearch">
+      <input id="searchInput" placeholder="검색(/) 또는 Ctrl+K" autocomplete="off">
+      <button class="btn" id="searchBtn">🔍 검색</button>
+    </div>
 
-    /* ========= APP STATE ========= */
-    $('foldBtn').onclick=()=>$('wrap').classList.toggle('collapsed');
-    let mode='basic'; $('modeSelect').onchange=e=>mode=e.target.value;
+    <ul id="autocomplete"></ul><div id="suggestions"></div><div id="previewPopup"></div>
+  </section>
+</main>
 
-    /* === Cloud Run endpoint ( /api 포함 ) === */
-    const API='https://api-w7dmw4n5zq-du.a.run.app/api';
+<div id="chatPanel" role="dialog">
+  <div id="chatHeader">💬 Gemini Chat <button class="btn" id="chatClose">✖︎ 닫기</button></div>
+  <div id="chatLog"></div><input id="chatInput" placeholder="Enter 로 전송">
+</div>
 
-    /* ========= LOCAL fallback maps ========= */
-    /* (KO_MAP, EN_MAP, koQA, enQA 정의는 생략 없이 동일, 아래 코드 그대로 유지) */
-    const KO_MAP={가:['가방','가게','가구','가족','가치'],나:['나무','나라','나비','나이','나열'],
-      다:['다리','다짐','다방','다양','다툼'],라:['라디오','라면','라벨','라이브','라운드'],
-      마:['마음','마을','마법','마차','마켓'],바:['바다','바람','바늘','바보','바위'],
-      사:['사과','사랑','사전','사막','사슴'],아:['아침','아이','아이스','아파트','아빠'],
-      자:['자유','자동차','자료','자연','자전거'],차:['차량','차트','차표','차이','차원'],
-      카:['카드','카메라','카카오','카페','카운트'],타:['타워','타자','타임','타일','타깃'],
-      파:['파랑','파도','파워','파일','파티'],하:['하늘','하트','하이','하마','하루']};
-    const EN_MAP={a:['apple','angel','album','area','award'],b:['banana','bird','bridge','brown','brave'],
-      c:['city','cloud','circle','coffee','candle'],d:['dog','dance','dream','drama','draft'],
-      e:['eagle','earth','energy','event','extra'],f:['flower','forest','future','focus','fresh'],
-      g:['grape','green','garden','giant','glory'],h:['house','heart','happy','human','hobby'],
-      i:['island','idea','image','issue','iron'],j:['juice','jungle','jewel','judge','joint'],
-      k:['kite','king','kitchen','kit','kind'],l:['lion','light','logic','lake','leaf'],
-      m:['moon','music','market','magic','model'],n:['night','note','nature','number','noble'],
-      o:['ocean','orange','orbit','order','owner'],p:['piano','paper','peace','power','party'],
-      q:['queen','quick','quiet','quest','quote'],r:['river','road','robot','rain','ready'],
-      s:['sun','star','smart','story','style'],t:['tree','travel','table','trend','trust'],
-      u:['umbrella','union','unique','urban','upper'],v:['violet','value','voice','visit','vivid'],
-      w:['whale','water','world','window','wise'],x:['xylophone','xenon','xerox','xmas','x-ray'],
-      y:['yacht','yellow','youth','yield','yummy'],z:['zebra','zero','zone','zoom','zen']};
-    const koQA=w=>`${w}이(가) 무엇인가요?`;
-    const enQA=w=>`What is ${w}?`;
+<!-- 개인정보 동의 -->
+<div id="consent" style="position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:500">
+  <div style="max-width:420px;margin:15vh auto;background:var(--box);padding:1.6rem;border-radius:10px;
+              box-shadow:0 6px 18px rgba(0,0,0,.4);text-align:center">
+    <h3>개인정보 수집·이용 동의</h3>
+    <p>본 서비스를 이용하면 개인정보 수집·이용에 동의한 것으로 간주됩니다.<br>
+       주민등록번호·건강·금융 등 민감정보는 입력하지 마세요.</p>
+    <button class="btn" id="agreeBtn" style="margin-top:.8rem">확인</button>
+  </div>
+</div>
 
-    function fallbackSuggest(keyword){
-      const ch=(keyword||'')[0];
-      const isKo=/[가-힣]/.test(ch), isEn=/[A-Za-z]/.test(ch);
-      let words,sent;
-      if(isKo){words=KO_MAP[ch]||KO_MAP['가'];sent=words.slice(0,3).map(koQA);}
-      else if(isEn){words=EN_MAP[ch.toLowerCase()]||EN_MAP['a'];sent=words.slice(0,3).map(enQA);}
-      else{words=EN_MAP['a'];sent=words.slice(0,3).map(enQA);}
-      return {words,sentences:sent};
-    }
+<footer>
+  ⚠️ AI 출력은 오류가 있을 수 있습니다. <strong>중요한 내용은 반드시 검증하세요.</strong><br>
+  ⚠️ 주민등록번호·건강·금융 등 <strong>민감정보는 입력·저장하지 마세요.</strong>
+</footer>
 
-    async function postSuggest(keyword,mode){
-      if(!keyword.trim()) return fallbackSuggest(keyword);
-      try{
-        const r=await fetch(`${API}/suggestAI`,{
-          method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({keyword,mode,context:''})
+<!-- ───────── SCRIPT ───────── -->
+<script>
+/* UTIL */
+const $ = id => document.getElementById(id);
+const deb = (fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}};
+
+/* 민감정보 마스킹 */
+const PII_PATTERNS=[
+  /\b\d{2,3}-\d{2,4}-\d{4}\b/g,
+  /\b[0-9]{6}-[1-4][0-9]{6}\b/g,
+  /(비밀번호|password)\s*[:=]?\s*\S+/gi,
+  /(주소)\s*[:=]?\s*.+/gi
+];
+const maskSensitive = txt => PII_PATTERNS.reduce((t,r)=>t.replace(r,'★ 민감정보 숨김 ★'),txt);
+
+/* THEME */
+function setTheme(dark){document.body.classList.toggle('dark',dark);
+                        localStorage.setItem('theme',dark?'dark':'light');}
+(()=>{const s=localStorage.getItem('theme');
+     setTheme(s?s==='dark':(new Date().getHours()>=18||new Date().getHours()<6));})();
+$('themeBtn').onclick=()=>setTheme(!document.body.classList.contains('dark'));
+
+/* 개인정보 동의 */
+(()=>{if(!localStorage.getItem('consent-ok')){
+  $('consent').style.display='block';
+  $('agreeBtn').onclick=()=>{localStorage.setItem('consent-ok','1');$('consent').style.display='none';};
+}})();
+
+/* STATE & ENDPOINT */
+$('foldBtn').onclick=()=>$('wrap').classList.toggle('collapsed');
+let mode='basic';$('modeSelect').onchange=e=>mode=e.target.value;
+const API='https://api-w7dmw4n5zq-du.a.run.app/api';
+
+/* fallback 사전 (KO_MAP, EN_MAP 동일) */
+const KO_MAP={가:['가방','가게','가구','가족','가치'],나:['나무','나라','나비','나이','나열'],다:['다리','다짐','다방','다양','다툼'],
+라:['라디오','라면','라벨','라이브','라운드'],마:['마음','마을','마법','마차','마켓'],바:['바다','바람','바늘','바보','바위'],
+사:['사과','사랑','사전','사막','사슴'],아:['아침','아이','아이스','아파트','아빠'],자:['자유','자동차','자료','자연','자전거'],
+차:['차량','차트','차표','차이','차원'],카:['카드','카메라','카카오','카페','카운트'],타:['타워','타자','타임','타일','타깃'],
+파:['파랑','파도','파워','파일','파티'],하:['하늘','하트','하이','하마','하루']};
+const EN_MAP={a:['apple','angel','album','area','award'],b:['banana','bird','bridge','brown','brave'],
+c:['city','cloud','circle','coffee','candle'],d:['dog','dance','dream','drama','draft'],
+e:['eagle','earth','energy','event','extra'],f:['flower','forest','future','focus','fresh'],
+g:['grape','green','garden','giant','glory'],h:['house','heart','happy','human','hobby'],
+i:['island','idea','image','issue','iron'],j:['juice','jungle','jewel','judge','joint'],
+k:['kite','king','kitchen','kit','kind'],l:['lion','light','logic','lake','leaf'],
+m:['moon','music','market','magic','model'],n:['night','note','nature','number','noble'],
+o:['ocean','orange','orbit','order','owner'],p:['piano','paper','peace','power','party'],
+q:['queen','quick','quiet','quest','quote'],r:['river','road','robot','rain','ready'],
+s:['sun','star','smart','story','style'],t:['tree','travel','table','trend','trust'],
+u:['umbrella','union','unique','urban','upper'],v:['violet','value','voice','visit','vivid'],
+w:['whale','water','world','window','wise'],x:['xylophone','xenon','xerox','xmas','x-ray'],
+y:['yacht','yellow','youth','yield','yummy'],z:['zebra','zero','zone','zoom','zen']};
+const koQA=w=>`${w}이(가) 무엇인가요?`; const enQA=w=>`What is ${w}?`;
+function fallback(keyword=''){const ch=keyword[0]||'a';
+ if(/[가-힣]/.test(ch)){const w=KO_MAP[ch]||KO_MAP['가'];return{words:w,sentences:w.slice(0,3).map(koQA)};}
+ const w=EN_MAP[ch.toLowerCase()]||EN_MAP['a'];return{words:w,sentences:w.slice(0,3).map(enQA)}}
+
+/* Intent */
+function guessIntent(t){
+  if(/^[가-힣]{1,2}$/.test(t))return'define';
+  if(/\?\s*$/.test(t))return'ask';
+  if(/[.!?]$/.test(t)&&t.split(' ').length>5)return'write';
+  return'other';
+}
+
+/* API helpers */
+async function postSuggest(keyword){
+  if(keyword.trim().length<2)return fallback(keyword);
+  try{
+    const r=await fetch(`${API}/suggestAI`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({keyword,mode,intent:guessIntent(keyword),context:''})
+    });
+    if(!r.ok)throw new Error();
+    return await r.json();
+  }catch{return fallback(keyword);}
+}
+async function searchAPI(q){
+  try{
+    const r=await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+    if(!r.ok)throw new Error();
+    return (await r.json()).links || [];
+  }catch{return [];}
+}
+
+/* Popup */
+const popup=$('previewPopup');
+const hidePopup=()=>popup.style.display='none';
+function showPopup(html,l,t){popup.innerHTML=html;popup.style.left=l+'px';popup.style.top=t+'px';popup.style.display='block';}
+document.addEventListener('click',e=>{if(!popup.contains(e.target))hidePopup();});
+
+/* CKEditor & Suggestions */
+let editor;
+ClassicEditor.create($('editor')).then(ed=>{
+  editor=ed;
+
+  ed.model.document.on('change:data',()=>{
+    $('charCount').textContent=ed.getData().replace(/<[^>]*>/g,'').length+'자';
+  });
+
+  const sug=$('suggestions');
+  const clamp=(v,min,max)=>Math.min(Math.max(v,min),max);
+
+  /* 250ms 디바운스 */
+  ed.model.document.on('change:data',deb(async()=>{
+    const plain=ed.getData().replace(/<[^>]*>/g,'');
+    const pos  =ed.model.document.selection.getFirstPosition();
+    const word =plain.slice(0,pos.offset).match(/(\S+)$/)?.[1]||'';
+    if(!word){sug.style.display='none';return;}
+
+    const {words,sentences}=await postSuggest(word);
+    const list= sentences.length ? sentences : words.slice(0,5);
+    if(!list.length){sug.style.display='none';return;}
+
+    const rangeRect=window.getSelection().getRangeAt(0).getClientRects()[0]||{left:0,bottom:0,top:0};
+    const wrapRect=$('wrap').getBoundingClientRect();
+
+    sug.innerHTML=list.map((t,i)=>`<div class="suggestion-item" data-i="${i}">${DOMPurify.sanitize(t)}</div>`).join('');
+    sug.querySelectorAll('.suggestion-item').forEach(el=>{
+      el.onclick=()=>{
+        const i=+el.dataset.i;
+        const sent=maskSensitive(list[i]);
+        editor.model.change(w=>{
+          w.insertText(sent+' ',editor.model.document.selection.getFirstPosition());
         });
-        if(!r.ok) throw new Error(`HTTP ${r.status}`);
-        return await r.json();
-      }catch(e){
-        console.warn('suggestAI fallback',e.message);
-        return fallbackSuggest(keyword);
-      }
-    }
-    async function searchAPI(q){
-      try{
-        const r=await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
-        if(!r.ok) throw new Error();
-        return (await r.json()).links||[];
-      }catch{return[];}
-    }
-
-    /* ========= POPUP ========= */
-    const popup=$('previewPopup');
-    function showPopup(html,l,t){
-      popup.innerHTML=html;
-      popup.style.left=l+'px';
-      popup.style.top=t+'px';
-      popup.style.display='block';
-    }
-    function hidePopup(){popup.style.display='none';}
-    document.addEventListener('click',e=>{
-      if(!popup.contains(e.target)) hidePopup();
+        sug.style.display='none';
+      };
     });
 
-    /* ========= CKEditor ========= */
-    let editor;
-    ClassicEditor.create($('editor')).then(ed=>{
-      editor=ed;
+    sug.style.visibility='hidden';sug.style.display='block';
+    const h=sug.offsetHeight, w=sug.offsetWidth;
+    sug.style.visibility='visible';
 
-      /* 글자수 */
-      ed.model.document.on('change:data',()=>{
-        $('charCount').textContent=
-          ed.getData().replace(/<[^>]*>/g,'').length+'자';
-      });
+    let top = rangeRect.bottom - wrapRect.top + 4;
+    let left= clamp(rangeRect.left - wrapRect.left, 0, wrapRect.width - w);
+    if(top + h > wrapRect.height){
+      top = rangeRect.top - wrapRect.top - h - 4;
+      if(top < 0) top = wrapRect.height - h;
+    }
+    sug.style.left=`${left}px`; sug.style.top=`${top}px`; sug.style.display='block';
+  },250));
 
-      /* 인라인 추천 */
-      const sug=$('suggestions'); let items=[],stage='word',last='';
-      ed.model.document.on('change:data',deb(async ()=>{
-        const plain=ed.getData().replace(/<[^>]*>/g,'');
-        const pos=ed.model.document.selection.getFirstPosition();
-        const word=plain.slice(0,pos.offset).match(/(\S+)$/)?.[1]||'';
-        if(!word){sug.style.display='none';return;}
-        if(word!==last){last=word;stage='word';}
-        const {words,sentences}=await postSuggest(word,mode);
-        items=(stage==='word'?words:sentences).slice(0,3);
-        if(!items.length){sug.style.display='none';return;}
-
-        const sel=window.getSelection();
-        if(!sel.rangeCount){sug.style.display='none';return;}
-        const rect=sel.getRangeAt(0).getClientRects()[0];
-        if(!rect){sug.style.display='none';return;}
-        const wrap=$('wrap').getBoundingClientRect();
-
-        sug.innerHTML=items.map((t,i)=>`<div class="suggestion-item" data-i="${i}">
-          ${DOMPurify.sanitize(t)}</div>`).join('');
-        sug.querySelectorAll('.suggestion-item').forEach(el=>{
-          el.onclick=()=>{
-            const i=+el.dataset.i;
-            editor.model.change(w=>w.insertText(items[i]+' ',pos));
-            sug.style.display='none';
-          };
-        });
-        sug.style.left=(rect.left-wrap.left)+'px';
-        sug.style.top=(rect.bottom-wrap.top+4)+'px';
-        sug.style.display='block';
-      },300));
-
-      /* 검색 & 프리뷰 */
-      const ac=$('autocomplete');
-      $('searchInput').addEventListener('input',deb(async e=>{
-        const q=e.target.value.trim();
-        if(q.length<2){ac.style.display='none';return;}
-        const links=await searchAPI(q);
-        ac.innerHTML=links.slice(0,6).map((l,i)=>`
-          <li data-i="${i}">
-            <strong>${DOMPurify.sanitize(l.title)}</strong><br>
-            <small>${DOMPurify.sanitize(l.snippet)}</small><br>
-            <button class="btn tiny" data-open="${l.link}">이동</button>
-          </li>`).join('');
-        ac.querySelectorAll('li').forEach(li=>{
-          const idx=+li.dataset.i;
-          /* 미리보기 & 삽입 */
-          li.onclick=()=>{
-            const item=links[idx];
-            const wrap=$('wrap').getBoundingClientRect();
-            const r=li.getBoundingClientRect();
-            showPopup(
-              `<h4>${DOMPurify.sanitize(item.title)}</h4>
-               <p>${DOMPurify.sanitize(item.snippet)}</p>
-               <button id="btnInsert">이 정보 삽입</button>`,
-              r.left-wrap.left,r.bottom-wrap.top+4
-            );
-            document.getElementById('btnInsert').onclick=()=>{
-              ac.style.display='none'; hidePopup();
-              editor.model.change(w=>{
-                const html=`<blockquote><p><a href="${item.link}" target="_blank">
-                             ${DOMPurify.sanitize(item.title)}</a></p>
-                             <small>${DOMPurify.sanitize(item.snippet)}</small></blockquote><p></p>`;
-                w.insert(editor.data.toModel(editor.data.processor.toView(html)),
-                         editor.model.document.selection.getFirstPosition());
-              });
-            };
-          };
-          /* ‘이동’ 버튼 → 새 탭 */
-          li.querySelector('[data-open]').onclick=e=>{
-            e.stopPropagation();
-            window.open(e.currentTarget.dataset.open,'_blank');
-          };
-        });
-        ac.style.display=links.length?'block':'none';
-      },250));
-
-      $('searchInput').addEventListener('keydown',e=>{
-        if(e.key==='Enter'){e.preventDefault();$('searchBtn').click();}
-      });
-      $('searchBtn').onclick=()=>{
-        const q=$('searchInput').value.trim();
-        if(!q) return;
-        if(confirm(`Google에서 “${q}” 검색 페이지를 새 탭으로 열까요?`)){
-          window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`,'_blank');
-          return;
-        }
-        /* 내부 검색 삽입 */
-        searchAPI(q).then(links=>{
-          if(!links.length) return alert('검색결과 없음');
-          const it=links[0];
+  /* 검색(생략 없는 전체 구현) */
+  const ac=$('autocomplete');
+  $('searchInput').addEventListener('input',deb(async e=>{
+    const q=e.target.value.trim(); if(q.length<2){ac.style.display='none';return;}
+    const links=await searchAPI(q);
+    ac.innerHTML=links.slice(0,6).map((l,i)=>`
+      <li data-i="${i}">
+        <strong>${DOMPurify.sanitize(l.title)}</strong><br>
+        <small>${DOMPurify.sanitize(l.snippet)}</small><br>
+        <button class="btn tiny" data-open="${l.link}">이동</button>
+      </li>`).join('');
+    ac.querySelectorAll('li').forEach(li=>{
+      const idx=+li.dataset.i, item=links[idx];
+      li.onclick=()=>{
+        const wRect=$('wrap').getBoundingClientRect();
+        const r=li.getBoundingClientRect();
+        showPopup(`<h4>${DOMPurify.sanitize(item.title)}</h4>
+                   <p>${DOMPurify.sanitize(item.snippet)}</p>
+                   <button id="btnInsert">삽입</button>`,
+                   r.left-wRect.left,r.bottom-wRect.top+4);
+        document.getElementById('btnInsert').onclick=()=>{
+          ac.style.display='none'; hidePopup();
           editor.model.change(w=>{
-            const html=`<blockquote><p><a href="${it.link}" target="_blank">
-                         ${DOMPurify.sanitize(it.title)}</a></p>
-                         <small>${DOMPurify.sanitize(it.snippet)}</small></blockquote><p></p>`;
-            w.insert(editor.data.toModel(editor.data.processor.toView(html)),
-                     editor.model.document.selection.getFirstPosition());
+            const html=`<blockquote><p><a href="${item.link}" target="_blank">${DOMPurify.sanitize(item.title)}</a></p><small>${DOMPurify.sanitize(item.snippet)}</small></blockquote><p></p>`;
+            w.insert(editor.data.toModel(editor.data.processor.toView(html)),editor.model.document.selection.getFirstPosition());
           });
-        });
+        };
       };
+      li.querySelector('[data-open]').onclick=e=>{
+        e.stopPropagation(); window.open(e.currentTarget.dataset.open,'_blank');
+      };
+    });
+    ac.style.display=links.length?'block':'none';
+  },250));
 
-      /* 문서 저장 / 불러오기 */
-      function loadDocs(){
-        const ul=$('docList'); ul.innerHTML='';
-        const ks=Object.keys(localStorage).filter(k=>k.startsWith('doc-')).sort().reverse();
-        if(!ks.length){ul.innerHTML='<li style="color:#777">문서 없음</li>';return;}
-        ks.forEach(k=>{
-          const {title,html}=JSON.parse(localStorage.getItem(k));
-          const li=document.createElement('li');
-          li.textContent=title;
-          li.onclick=()=>editor.setData(html);
-          const del=document.createElement('span');
-          del.textContent='✖︎'; del.className='doc-del';
-          del.onclick=e=>{e.stopPropagation();localStorage.removeItem(k);loadDocs();};
-          li.appendChild(del); ul.appendChild(li);
-        });
-      }
-      $('saveBtn').onclick=()=>{
-        const html=editor.getData();
-        const title=html.replace(/<[^>]*>/g,'').trim().split(/[\n\.]/)[0]||'무제';
-        localStorage.setItem('doc-'+Date.now(),JSON.stringify({title,html}));
-        alert('✅ 저장되었습니다'); loadDocs();
-      };
-      $('exportBtn').onclick=()=>{
-        const blob=new Blob([editor.getData()],{type:'text/html'});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download='thinkhelper.html';
-        a.click(); URL.revokeObjectURL(url);
-      };
-      loadDocs();
-
-      /* 채팅 */
-      $('chatBtn').onclick=()=>$('chatPanel').style.display='flex';
-      $('chatClose').onclick=()=>$('chatPanel').style.display='none';
-      $('chatInput').addEventListener('keydown',async e=>{
-        if(e.key!=='Enter'||e.isComposing) return;
-        const q=e.target.value.trim(); if(!q) return; e.target.value='';
-        const log=$('chatLog');
-        const add=(cls,txt)=>{const d=document.createElement('div');d.className='chatMsg '+cls;
-                              d.textContent=txt; log.appendChild(d); log.scrollTop=log.scrollHeight; return d;};
-        add('user',q); const ai=add('ai','⌛');
-        try{
-          const r=await fetch(`${API}/gpt`,{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({text:q})
-          });
-          const j=await r.json(); ai.textContent=j.response?.text||'(오류)';
-        }catch{ai.textContent='(서버 오류)';}
+  $('searchInput').addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();$('searchBtn').click();}
+  });
+  $('searchBtn').onclick=()=>{
+    const q=$('searchInput').value.trim(); if(!q)return;
+    if(confirm(`Google에서 “${q}” 검색하시겠습니까?`)){
+      window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`,'_blank'); return;
+    }
+    searchAPI(q).then(links=>{
+      if(!links.length){alert('검색결과 없음');return;}
+      const it=links[0];
+      editor.model.change(w=>{
+        const html=`<blockquote><p><a href="${it.link}" target="_blank">${DOMPurify.sanitize(it.title)}</a></p><small>${DOMPurify.sanitize(it.snippet)}</small></blockquote><p></p>`;
+        w.insert(editor.data.toModel(editor.data.processor.toView(html)),editor.model.document.selection.getFirstPosition());
       });
+    });
+  };
 
-    }).catch(console.error);
-  </script>
+  /* 문서 저장 */
+  function loadDocs(){
+    const ul=$('docList'); ul.innerHTML='';
+    const ks=Object.keys(localStorage).filter(k=>k.startsWith('doc-')).sort().reverse();
+    if(!ks.length){ul.innerHTML='<li style="color:#777">문서 없음</li>';return;}
+    ks.forEach(k=>{
+      const {title,html}=JSON.parse(localStorage.getItem(k));
+      const li=document.createElement('li'); li.textContent=title;
+      li.onclick=()=>editor.setData(html);
+      const del=document.createElement('span'); del.textContent='✖︎'; del.className='doc-del';
+      del.onclick=e=>{e.stopPropagation();localStorage.removeItem(k);loadDocs();};
+      li.appendChild(del); ul.appendChild(li);
+    });
+  }
+  $('saveBtn').onclick=()=>{
+    const html=editor.getData();
+    const title=html.replace(/<[^>]*>/g,'').trim().split(/[\n\.]/)[0]||'무제';
+    localStorage.setItem('doc-'+Date.now(),JSON.stringify({title,html}));
+    loadDocs();
+    appendChat('ai','문서를 검토해 드릴까요?');
+    $('chatPanel').style.display='flex';
+  };
+  $('exportBtn').onclick=()=>{
+    const blob=new Blob([editor.getData()],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='thinkhelper.html'; a.click();
+    URL.revokeObjectURL(url);
+  };
+  loadDocs();
+
+}).catch(console.error);
+
+/* Chat */
+$('chatBtn').onclick=()=>$('chatPanel').style.display='flex';
+$('chatClose').onclick=()=>$('chatPanel').style.display='none';
+
+function appendChat(cls,txt){
+  const d=document.createElement('div'); d.className='chatMsg '+cls; d.textContent=txt;
+  $('chatLog').appendChild(d); $('chatLog').scrollTop=$('chatLog').scrollHeight; saveChat(); return d;
+}
+function saveChat(){localStorage.setItem('chat-history',$('chatLog').innerHTML);}
+function loadChat(){const h=localStorage.getItem('chat-history');if(h)$('chatLog').innerHTML=h;}
+loadChat();
+
+$('chatInput').addEventListener('keydown',async e=>{
+  if(e.key!=='Enter'||e.isComposing)return;
+  const q=e.target.value.trim(); if(!q)return; e.target.value='';
+  appendChat('user',q); const ai=appendChat('ai','⏳');
+  try{
+    const r=await fetch(`${API}/gpt`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:q})});
+    const j=await r.json(); ai.textContent=j.response?.text||'(오류)';
+  }catch{ai.textContent='(서버 오류)';}
+  saveChat();
+});
+</script>
 </body>
 </html>
