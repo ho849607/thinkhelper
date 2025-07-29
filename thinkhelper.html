@@ -1,26 +1,25 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://accounts.google.com https://www.gstatic.com https://cdn.ckeditor.com https://apis.google.com https://cdn.jsdelivr.net https://ipapi.co 'unsafe-inline' 'unsafe-eval'; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/ https://ipapi.co https://api-w7dmw4n5zq-du.a.run.app https://www.googleapis.com wss://5509-firebase-thinkhelper-1-1751178473634.cluster-bg6uurscprhn6qxr6xwtrhvkf6.cloudworkstations.dev ws: wss:; object-src 'none'"/>
+  <meta http-equiv="Permissions-Policy" content="identity-credentials-get=()"/>
   <title>ThinkHelper 3.1</title>
   <link rel="icon" href="data:,"/>
 
   <!-- Google Identity & Drive -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <meta name="google-signin-client_id"
-        content="609565568467-cmagnrdngsojg5q62ljf5gi8ljk7moac.apps.googleusercontent.com"/>
-  <meta name="google-api-key"
-        content="AIzaSyDaBLLoSo5zwFhl72L9R7VeQqa1eybwqKk"/>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <meta name="google-signin-client_id" content="609565568467-cmagnrdngsojg5q62ljf5gi8ljk7moac.apps.googleusercontent.com"/>
+  <meta name="google-api-key" content="AIzaSyDaBLLoSo5zwFhl72L9R7VeQqa1eybwqKk"/>
 
   <!-- Libraries -->
-  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js"></script>
+  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js" async></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js" async></script>
 
-  <!-- ───────── STYLE ───────── -->
+  <!-- STYLE -->
   <style>
-  /* ===== Color Tokens ===== */
   :root {
     --primary: #1976d2;
     --primary-light: #e3f2fd;
@@ -45,21 +44,22 @@
     --primary-light: #4a90e2;
     --primary-hover: #357abd;
   }
+  body.dark #loginDisplay, body.dark #charCount, body.dark .btn, body.dark .suggestion-item,
+  body.dark .chatMsg, body.dark #consentBox, body.dark #settingsBox, body.dark #helpBox, body.dark footer {
+    color: #fff;
+  }
+  body.dark .chatMsg.ai { background: #444; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     height: 100vh; display: flex; flex-direction: column;
     font-family: -apple-system, Segoe UI, Roboto, sans-serif;
     background: var(--bg); color: var(--fg); transition: background 0.3s, color 0.3s;
   }
-
-  /* ===== Login Gate ===== */
   #loginGate { display: none; position: absolute; inset: 0; background: rgba(0,0,0,.82); z-index: 2000;
     color: #fff; font-size: 1.1rem; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; padding: 1rem; }
   #loginGate button { margin-top: 1rem; padding: .6rem 1.2rem; border: none; border-radius: 4px;
     background: #4285f4; color: #fff; font-size: 1rem; cursor: pointer; }
-
-  /* ===== Header ===== */
   header { display: flex; justify-content: space-between; align-items: center;
     padding: .55rem .9rem; background: var(--primary); color: var(--text-light);
     position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,.25); }
@@ -71,41 +71,34 @@
     color: var(--primary); cursor: pointer; font-size: .86rem; transition: background .2s; }
   .btn:hover { background: var(--primary-light); }
   .btn.tiny { padding: .2rem .5rem; font-size: .8rem; }
-  .toolbar .divider { width: 1px; height: 24px; background: var(--primary-hover); }
   select { padding: .32rem; border: none; border-radius: 4px; background: var(--box); color: var(--primary); font-size: .86rem; }
-
-  /* ===== Main Layout ===== */
+  #loginDisplay { font-weight: bold; }
   main { flex: 1; display: flex; min-height: 0; }
-
-  /* Left Sidebar (Document List & Actions) */
   aside { width: 230px; background: var(--primary-light); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow: auto; transition: left .3s; }
   aside h3 { font-size: 1rem; font-weight: 600; padding: 1rem .9rem; border-bottom: 1px solid var(--border); }
   #mobileActions { display: none; flex-direction: column; gap: .4rem; padding: .8rem; }
   #mobileActions button, #mobileActions select { width: 100%; }
-  #docList { list-style: none; font-size: .9rem; }
-  #docList li { display: flex; justify-content: space-between; align-items: center;
+  #docList, #chatList { list-style: none; font-size: .9rem; }
+  #docList li, #chatList li { display: flex; justify-content: space-between; align-items: center;
     padding: .55rem .85rem; border-bottom: 1px dashed var(--border); cursor: pointer; }
-  #docList li:hover { background: var(--primary-hover); }
-  .doc-del { margin-left: .4rem; color: #888; cursor: pointer; }
-  .doc-del:hover { color: #f44336; }
+  #docList li:hover, #chatList li:hover { background: var(--primary-hover); }
+  .doc-del, .doc-rename, .chat-del { margin-left: .4rem; color: #888; cursor: pointer; }
+  .doc-del:hover, .chat-del:hover { color: #f44336; }
+  .doc-rename:hover { color: var(--primary); }
   #emptyCTA { padding: 1.4rem .9rem; text-align: center; font-size: .88rem; color: #555; }
   #newDocBtn { margin-top: .7rem; padding: .5rem 1rem; border: none; border-radius: 4px;
     background: var(--primary); color: #fff; cursor: pointer; font-size: .88rem; }
   #newDocBtn:hover { background: #1565c0; }
-
-  /* Editor */
   section { flex: 1; display: flex; flex-direction: column; padding: 1rem; position: relative;
     background: var(--box); min-width: 0; transition: height .25s; }
   section.collapsed { height: 66px !important; }
   #editor { flex: 1; border: 1px solid var(--border); border-radius: 4px; padding: .9rem; overflow: auto;
     background: inherit; color: inherit; }
-  #editor:empty::before { content: '여기에 글을 입력하세요...'; color: #aaa; font-style: italic; }
+  #editor:empty::before { content: attr(data-placeholder); color: #aaa; font-style: italic; }
   section.collapsed #editor { height: 0; padding: 0; border: none; overflow: hidden; }
   .ck-editor__editable_inline { min-height: 60vh !important; }
   #charCount { text-align: right; margin-top: .4rem; font-size: .82rem; color: var(--primary); }
-
-  /* Search & AI Suggestions */
   #inlineSearch { display: flex; gap: .5rem; margin-top: 1rem; position: relative; }
   #inlineSearch input { flex: 1; padding: .55rem; font-size: 1rem; border: 1px solid var(--border);
     border-radius: 4px; background: inherit; color: inherit; }
@@ -119,12 +112,11 @@
     box-shadow: 0 3px 8px rgba(0,0,0,.2); font-size: .9rem; }
   .suggestion-item { padding: .4rem .8rem; border-bottom: 1px dashed var(--border); cursor: pointer; color: var(--sug-text); }
   .suggestion-item:last-child { border-bottom: none; }
-  .suggestion-item:hover { background: var(--sug-hover); }
+  .suggestion-item:hover, .suggestion-item.selected { background: var(--sug-hover); }
+  .suggestion-item.selected { outline: 2px solid var(--primary); }
   #previewPopup { display: none; position: absolute; z-index: 50; background: var(--box); border: 1px solid var(--border);
     border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,.2); padding: .6rem; max-width: 280px; }
   #previewPopup h4 { margin-bottom: .5rem; font-size: 1rem; }
-
-  /* Chat */
   #chatPanel { display: none; position: fixed; bottom: 1.2rem; right: 1.2rem; width: 360px; height: 460px;
     background: var(--box); border: 1px solid var(--border); border-radius: 6px;
     box-shadow: 0 3px 8px rgba(0,0,0,.2); flex-direction: column; overflow: hidden; z-index: 300; }
@@ -134,36 +126,19 @@
   .chatMsg { margin: .45rem 0; padding: .5rem .75rem; border-radius: 6px; max-width: 85%; word-break: break-word; }
   .chatMsg.user { align-self: flex-end; background: var(--primary-light); }
   .chatMsg.ai { align-self: flex-start; background: #eee; }
+  body.dark .chatMsg.ai { background: #444; }
   #chatInput { border: none; border-top: 1px solid var(--border); padding: .6rem; width: 100%; background: inherit; color: inherit; outline: none; }
-
-  /* Consent Modal */
-  #consent { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 500; }
-  #consentBox { max-width: 420px; margin: 15vh auto; background: var(--box); padding: 1.6rem; border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.4); text-align: center; }
-
-  /* Settings Modal */
-  #settingsModal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 500; align-items: center; justify-content: center; }
-  #settingsBox { max-width: 420px; margin: 15vh auto; background: var(--box); padding: 1.6rem; border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.4); text-align: left; }
-  #settingsBox h3 { margin-bottom: 1rem; font-size: 1.2rem; }
+  #consent, #settingsModal, #helpModal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 500; align-items: center; justify-content: center; }
+  #consentBox, #settingsBox, #helpBox { background: var(--box); padding: 1.6rem; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  #consentBox { text-align: center; max-width: 420px; margin: 15vh auto; }
+  #settingsBox { max-width: 420px; margin: 15vh auto; text-align: left; }
+  #helpBox { max-width: 600px; max-height: 80vh; overflow: auto; margin: 15vh auto; text-align: left; }
+  #settingsBox h3, #helpBox h3 { margin-bottom: 1rem; font-size: 1.2rem; }
   #settingsBox label { display: block; margin: 0.8rem 0; font-size: 0.9rem; }
   #settingsBox input[type="checkbox"] { margin-right: 0.5rem; }
-  #settingsBox button { margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-
-  /* Help Modal */
-  #helpModal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 500; align-items: center; justify-content: center; }
-  #helpBox { max-width: 600px; max-height: 80vh; overflow: auto; margin: 15vh auto; background: var(--box); padding: 1.6rem; border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.4); text-align: left; }
-  #helpBox h3 { margin-bottom: 1rem; font-size: 1.2rem; }
-  #helpBox section { margin-bottom: 1.5rem; }
-  #helpBox p { margin-bottom: 0.8rem; }
-  #helpBox button { margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-
-  /* Footer */
+  #settingsBox button, #helpBox button { margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
   footer { text-align: center; padding: .6rem; font-size: .8rem; color: #666; border-top: 1px solid var(--border); }
-
-  /* ===== Mobile (iPhone 14 Pro ≤430px) ===== */
-  @media (max-width:430px) {
+  @media (max-width: 430px) {
     #menuToggle { display: block; }
     main { flex-direction: column; }
     aside { position: fixed; left: -240px; top: 48px; height: calc(100% - 48px); z-index: 150; width: 230px; }
@@ -177,76 +152,81 @@
   </style>
 </head>
 <body>
-
   <!-- Login Gate -->
   <div id="loginGate" class="flex">
-    <h2>로그인이 필요합니다</h2>
-    <p>저장 또는 내보내기 기능을 사용하려면 로그인하세요.</p>
-    <button id="loginBtn" aria-label="Google 로그인">Google 로그인</button>
+    <h2 data-i18n="loginGate"></h2>
+    <p data-i18n="loginMessage"></p>
+    <button id="loginBtn" aria-label="Google Login" data-i18n="loginButton"></button>
   </div>
 
   <!-- Header -->
   <header>
     <div id="logoWrap">
-      <span id="menuToggle" aria-label="메뉴 토글">☰</span>
+      <span id="menuToggle" aria-label="Menu Toggle">☰</span>
       <h1>ThinkHelper 3.1</h1>
     </div>
-  
     <div class="toolbar">
       <span id="loginDisplay" style="color:#fff;margin-right:.4rem"></span>
-      <button class="btn" id="authBtn" aria-label="Google 로그인">Google 로그인</button>
-      <select id="modeSelect" class="desktop-only" aria-label="모드 선택">
+      <button class="btn" id="authBtn" aria-label="Google Login" data-i18n="loginButton"></button>
+      <select id="languageSelect" aria-label="Language Selection">
+        <option value="en">English</option>
+        <option value="ko">한국어</option>
+        <option value="ja">日本語</option>
+      </select>
+      <select id="modeSelect" class="desktop-only" aria-label="Mode Selection">
         <option value="basic">🛠 Basic</option>
         <option value="journalist">📰 Journalist</option>
         <option value="research">📑 Research</option>
         <option value="law">⚖️ Legal</option>
         <option value="dev">💻 Developer</option>
       </select>
-      <button class="btn desktop-only" id="foldBtn" aria-label="접기/펼치기">📄 접기/펼치기</button>
-      <button class="btn" id="saveBtn" aria-label="저장">💾 저장</button>
-      <button class="btn" id="exportBtn" aria-label="Google Drive로 내보내기">📂 Drive→Docs</button>
-      <button class="btn desktop-only" id="chatBtn" aria-label="채팅">💬 Chat</button>
-      <button class="btn desktop-only" id="themeBtn" aria-label="테마 전환">🌙 테마</button>
-      <button class="btn desktop-only" id="settingsBtn" aria-label="설정">⚙️ 설정</button>
-      <button class="btn desktop-only" id="helpBtn" aria-label="도움말">❓</button>
+      <button class="btn desktop-only" id="foldBtn" aria-label="Fold/Unfold" data-i18n="foldBtn">📄 Fold/Unfold</button>
+      <button class="btn" id="saveBtn" aria-label="Save" data-i18n="save">💾 Save</button>
+      <button class="btn" id="exportBtn" aria-label="Export to Drive" data-i18n="export">📂 Export to Drive</button>
+      <button class="btn desktop-only" id="chatBtn" aria-label="Chat" data-i18n="chatBtn">💬 Chat</button>
+      <button class="btn desktop-only" id="themeBtn" aria-label="Theme" data-i18n="themeBtn">🌙 Theme</button>
+      <button class="btn desktop-only" id="settingsBtn" aria-label="Settings" data-i18n="settingsTitle">⚙️ Settings</button>
+      <button class="btn desktop-only" id="helpBtn" aria-label="Help" data-i18n="helpTitle">❓ Help</button>
     </div>
   </header>
-  
+
   <!-- Main -->
   <main>
-    <!-- Sidebar (Document List & Mobile Actions) -->
+    <!-- Sidebar -->
     <aside>
       <div id="mobileActions" class="mobile-only">
-        <select id="mModeSelect" aria-label="모드 선택">
+        <select id="mLanguageSelect" aria-label="Language Selection">
+          <option value="en">English</option>
+          <option value="ko">한국어</option>
+          <option value="ja">日本語</option>
+        </select>
+        <select id="mModeSelect" aria-label="Mode Selection">
           <option value="basic">🛠 Basic</option>
           <option value="journalist">📰 Journalist</option>
           <option value="research">📑 Research</option>
           <option value="law">⚖️ Legal</option>
           <option value="dev">💻 Developer</option>
         </select>
-        <button class="btn" id="mChatBtn" aria-label="채팅">💬 Chat</button>
-        <button class="btn" id="mThemeBtn" aria-label="테마 전환">🌙 테마</button>
-        <button class="btn" id="mSettingsBtn" aria-label="설정">⚙️ 설정</button>
-        <button class="btn" id="mHelpBtn" aria-label="도움말">❓ 도움말</button>
+        <button class="btn" id="mChatBtn" aria-label="Chat" data-i18n="chatBtn">💬 Chat</button>
+        <button class="btn" id="mThemeBtn" aria-label="Theme" data-i18n="themeBtn">🌙 Theme</button>
+        <button class="btn" id="mSettingsBtn" aria-label="Settings" data-i18n="settingsTitle">⚙️ Settings</button>
+        <button class="btn" id="mHelpBtn" aria-label="Help" data-i18n="helpTitle">❓ Help</button>
       </div>
-      <h3>문서 목록</h3>
-      <div id="emptyCTA" style="display:none">
-        아직 저장된 문서가 없습니다.<br/>
-        <button id="newDocBtn" aria-label="새 문서 만들기">+ 새 문서 만들기</button>
-      </div>
+      <h3 data-i18n="docListTitle">Documents</h3>
+      <div id="emptyCTA" style="display:none" data-i18n="emptyCTA"></div>
       <ul id="docList"></ul>
+      <h3 data-i18n="chatListTitle">Chat History</h3>
+      <ul id="chatList"></ul>
     </aside>
 
     <!-- Editor Area -->
     <section id="wrap">
-      <div id="editor"></div>
-      <div id="charCount">0자</div>
-
+      <div id="editor" data-placeholder="Type here..."></div>
+      <div id="charCount">0 characters</div>
       <div id="inlineSearch">
-        <input id="searchInput" placeholder="검색(/) 또는 Ctrl+K" autocomplete="off" aria-label="검색"/>
-        <button class="btn" id="searchBtn" aria-label="검색 실행">🔍 검색</button>
+        <input id="searchInput" placeholder="Search (/ or Ctrl+K)" autocomplete="off" aria-label="Search" data-i18n-placeholder="searchPlaceholder"/>
+        <button class="btn" id="searchBtn" aria-label="Search" data-i18n="searchBtn">🔍 Search</button>
       </div>
-
       <ul id="autocomplete"></ul>
       <div id="suggestions"></div>
       <div id="previewPopup"></div>
@@ -254,585 +234,1341 @@
   </main>
 
   <!-- Chat -->
-  <div id="chatPanel" role="dialog" aria-label="채팅 패널">
-    <div id="chatHeader">💬 Gemini Chat <button class="btn" id="chatClose" aria-label="채팅 닫기">✖︎ 닫기</button></div>
+  <div id="chatPanel" role="dialog" aria-label="Chat Panel">
+    <div id="chatHeader" data-i18n="chatHeader">💬 Gemini Chat <button class="btn" id="chatClose" aria-label="Close Chat" data-i18n="closeBtn">✖︎ Close</button></div>
     <div id="chatLog"></div>
-    <input id="chatInput" placeholder="Enter 로 전송" aria-label="채팅 입력"/>
+    <input id="chatInput" placeholder="Send with Enter" aria-label="Chat Input" data-i18n-placeholder="chatPlaceholder"/>
   </div>
 
   <!-- Consent Modal -->
-  <div id="consent" aria-label="개인정보 동의 모달">
+  <div id="consent" aria-label="Consent Modal">
     <div id="consentBox">
-      <h3>개인정보 수집·이용 동의</h3>
-      <p>본 서비스를 이용하면 개인정보 수집·이용에 동의한 것으로 간주됩니다.<br/>민감정보는 입력하지 마세요.</p>
-      <button class="btn" id="agreeBtn" aria-label="동의 확인">확인</button>
+      <h3 data-i18n="consentTitle">Consent to Data Collection</h3>
+      <p data-i18n="consentMessage">By using this service, you consent to the collection and use of personal information (email, IP address, usage logs). Do not input sensitive information.</p>
+      <button class="btn" id="agreeBtn" aria-label="Agree" data-i18n="agreeBtn">Agree</button>
     </div>
   </div>
 
   <!-- Settings Modal -->
-  <div id="settingsModal" aria-label="설정 모달">
+  <div id="settingsModal" aria-label="Settings Modal">
     <div id="settingsBox">
-      <h3>설정</h3>
-      <label><input type="checkbox" id="enableSuggestions" checked> 맞춤 추천 활성화</label>
-      <label><input type="checkbox" id="enableInstant" checked> 즉시 추천 활성화 (모바일 단일 단어 입력)</label>
-      <button id="settingsCloseBtn" aria-label="설정 닫기">닫기</button>
+      <h3 data-i18n="settingsTitle">Settings</h3>
+      <label><input type="checkbox" id="enableSuggestions" checked> <span data-i18n="enableSuggestions">Enable personalized suggestions</span></label>
+      <label><input type="checkbox" id="enableInstant" checked> <span data-i18n="enableInstant">Enable instant suggestions (mobile single word)</span></label>
+      <button id="settingsCloseBtn" data-i18n="closeBtn">Close</button>
     </div>
   </div>
 
   <!-- Help Modal -->
-  <div id="helpModal" aria-label="도움말 모달">
+  <div id="helpModal" aria-label="Help Modal">
     <div id="helpBox">
-      <h3>ThinkHelper 도움말</h3>
-      <section id="termsOfService">
-        <h4>이용약관</h4>
-        <p>1. 본 서비스는 AI를 이용한 생각 정리 도구입니다.</p>
-        <p>2. 사용자는 서비스 이용 시 모든 콘텐츠에 대한 책임을 집니다.</p>
-        <p>3. 서비스는 예고 없이 변경될 수 있습니다.</p>
-      </section>
-      <section id="privacyPolicy">
-        <h4>개인정보처리방침</h4>
-        <p>1. 수집 항목: 이메일, 사용 로그.</p>
-        <p>2. 이용 목적: 서비스 제공 및 개선.</p>
-        <p>3. 보유기간: 사용자가 요청 시 삭제.</p>
-        <p>4. 제3자 제공: 제공하지 않습니다.</p>
-      </section>
-      <section id="usageGuide">
-        <h4>ThinkHelper 이용법</h4>
-        <p>1. 에디터에 텍스트를 입력: AI 제안이 자동으로 나타납니다 (맞춤 추천 활성화 시).</p>
-        <p>2. 저장 버튼으로 문서 저장 (로그인 필요).</p>
-        <p>3. 채팅 기능으로 AI와 대화.</p>
-        <p>4. 검색으로 웹 콘텐츠 삽입.</p>
-        <p>5. 테마 전환으로 다크모드 사용.</p>
-        <p>6. 모드 선택으로 리서치, 기사, 법률 문서, 개발 작업 지원.</p>
-      </section>
-      <button id="helpCloseBtn" aria-label="도움말 닫기">닫기</button>
+      <h3 data-i18n="helpTitle">ThinkHelper Help</h3>
+      <section id="termsOfService"><h4 data-i18n="termsTitle">Terms of Service</h4></section>
+      <section id="privacyPolicy"><h4 data-i18n="privacyTitle">Privacy Policy</h4></section>
+      <section id="usageGuide"><h4 data-i18n="usageTitle">Usage Guide</h4></section>
+      <button id="helpCloseBtn" data-i18n="closeBtn">Close</button>
     </div>
   </div>
 
-  <footer>
-    ⚠️ AI 출력은 오류가 있을 수 있습니다. <strong>중요한 내용은 반드시 검증하세요.</strong><br/>
-    ⚠️ 민감정보는 입력·저장하지 마세요.
+  <footer data-i18n="footerWarning">
+    ⚠️ AI output may contain errors. <strong>Always verify important content.</strong><br/>
+    ⚠️ Do not input or save sensitive information.
   </footer>
 
-<script>
-/* ───────── Google Login & Drive Initialization ───────── */
-let isLoggedIn = false;
-let startTime = 0;
-
-function handleCredentialResponse(res) {
-  const p = JSON.parse(atob(res.credential.split('.')[1]));
-  document.getElementById('loginDisplay').textContent = `${p.name}님`;
-  isLoggedIn = true;
-  document.getElementById('loginGate').style.display = 'none';
-  const authBtn = document.getElementById('authBtn');
-  authBtn.textContent = '로그아웃';
-  authBtn.onclick = logout;
-  gapi.load('client', () => {
-    gapi.client.init({
-      apiKey: document.querySelector('meta[name="google-api-key"]').content,
-      clientId: document.querySelector('meta[name="google-signin-client_id"]').content,
-      discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-      scope: "https://www.googleapis.com/auth/drive.file"
-    }).catch(console.error);
-  });
-}
-
-function initGoogleLogin() {
-  google.accounts.id.initialize({
-    client_id: document.querySelector('meta[name="google-signin-client_id"]').content,
-    callback: handleCredentialResponse
-  });
-  google.accounts.id.renderButton(
-    document.getElementById('authBtn'),
-    { theme: 'outline', size: 'small' }
-  );
-}
-
-function logout() {
-  isLoggedIn = false;
-  document.getElementById('loginDisplay').textContent = '';
-  const authBtn = document.getElementById('authBtn');
-  authBtn.textContent = 'Google 로그인';
-  authBtn.onclick = () => google.accounts.id.prompt();
-  google.accounts.id.renderButton(authBtn, { theme: 'outline', size: 'small' });
-}
-
-function checkGate() {
-  if (isLoggedIn) return;
-  document.getElementById('loginGate').style.display = 'flex';
-}
-
-window.onload = function() {
-  initGoogleLogin();
-  document.getElementById('loginBtn').onclick = () => google.accounts.id.prompt();
-
-  const $ = id => document.getElementById(id);
-  const deb = (fn, ms = 300) => {
-    let t;
-    return (...a) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...a), ms);
-    };
-  };
-
-  /* Settings */
-  let enableSuggestions = localStorage.getItem('enableSuggestions') !== 'false';
-  let enableInstant = localStorage.getItem('enableInstant') !== 'false';
-  $('enableSuggestions').checked = enableSuggestions;
-  $('enableInstant').checked = enableInstant;
-  $('enableSuggestions').onchange = () => {
-    enableSuggestions = $('enableSuggestions').checked;
-    localStorage.setItem('enableSuggestions', enableSuggestions);
-  };
-  $('enableInstant').onchange = () => {
-    enableInstant = $('enableInstant').checked;
-    localStorage.setItem('enableInstant', enableInstant);
-  };
-  $('settingsBtn').onclick = () => $('settingsModal').style.display = 'flex';
-  $('mSettingsBtn').onclick = () => $('settingsModal').style.display = 'flex';
-  $('settingsCloseBtn').onclick = () => $('settingsModal').style.display = 'none';
-  $('settingsModal').addEventListener('click', e => {
-    if (e.target === $('settingsModal')) $('settingsModal').style.display = 'none';
-  });
-
-  /* Theme */
-  function setTheme(dark) {
-    console.log('Setting theme:', dark ? 'dark' : 'light');
-    document.body.classList.toggle('dark', dark);
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
-  }
-  (() => {
-    const savedTheme = localStorage.getItem('theme');
-    const isDark = savedTheme ? savedTheme === 'dark' : (new Date().getHours() >= 18 || new Date().getHours() < 6);
-    setTheme(isDark);
-  })();
-  $('themeBtn').onclick = () => setTheme(!document.body.classList.contains('dark'));
-  $('mThemeBtn').onclick = () => setTheme(!document.body.classList.contains('dark'));
-
-  /* Consent */
-  (() => {
-    if (!localStorage.getItem('consent-ok')) {
-      $('consent').style.display = 'block';
-      $('agreeBtn').onclick = () => {
-        localStorage.setItem('consent-ok', '1');
-        $('consent').style.display = 'none';
-      };
-    }
-  })();
-
-  /* Fold/Unfold (Editor on Desktop) */
-  $('foldBtn').onclick = () => $('wrap').classList.toggle('collapsed');
-
-  /* Mode Selection */
-  let mode = 'basic';
-  $('modeSelect').onchange = e => {
-    mode = e.target.value;
-    applyModePrompt(mode);
-  };
-  $('mModeSelect').onchange = e => {
-    mode = e.target.value;
-    applyModePrompt(mode);
-  };
-
-  function applyModePrompt(mode) {
-    const prompts = {
-      journalist: '기사 작성에 도움이 되는 제안을 제공합니다. 예: "기사 주제에 대한 개요를 작성하세요."',
-      research: '리서치 논문 작성에 적합한 제안을 제공합니다. 예: "주제에 대한 문헌 검토를 요약하세요."',
-      law: '법률 문서 작성에 필요한 제안을 제공합니다. 예: "계약서 초안을 작성하세요."',
-      dev: '코드 작성 및 디버깅에 도움이 되는 제안을 제공합니다. 예: "해당 기능의 코드 스니펫을 작성하세요."',
-      basic: '일반적인 글쓰기 제안을 제공합니다.'
-    };
-    const promptText = prompts[mode] || prompts.basic;
-    appendChat('ai', `모드 변경: ${promptText}`);
-  }
-
+  <script>
+  /* ───────── Global Variables ───────── */
+  let mode = localStorage.getItem('mode') || 'basic';
+  let cachedGeoLanguage = localStorage.getItem('cachedGeoLanguage') || null;
+  let cachedGeoWords = JSON.parse(localStorage.getItem('cachedGeoWords') || '{}');
+  let isLoggedIn = false;
+  let startTime = 0;
+  let preferredLanguage = localStorage.getItem('preferredLanguage') || null;
+  let offlineAlertShown = localStorage.getItem('offlineAlertShown') === 'true' || false;
+  let topicPromptShown = localStorage.getItem('topicPromptShown') === 'true';
   const API = 'https://api-w7dmw4n5zq-du.a.run.app/api';
+  let selectedIndex = -1;
 
-  /* PII Masking */
+  /* ───────── Language Labels ───────── */
+  const languageLabels = {
+    en: {
+      newDoc: 'New Document',
+      save: 'Save',
+      export: 'Export to Drive',
+      emptyCTA: 'No documents saved yet.<br/><button id="newDocBtn" aria-label="New Document">+ New Document</button>',
+      loginGate: 'Login Required',
+      loginMessage: 'Please log in to use save or export features.',
+      loginButton: 'Google Login',
+      logout: 'Logout',
+      settingsTitle: 'Settings',
+      settingsClose: 'Close',
+      enableSuggestions: 'Enable personalized suggestions',
+      enableInstant: 'Enable instant suggestions (mobile single word input)',
+      searchPlaceholder: 'Search (/ or Ctrl+K)',
+      searchBtn: '🔍 Search',
+      foldBtn: '📄 Fold/Unfold',
+      chatBtn: '💬 Chat',
+      chatHeader: '💬 Gemini Chat',
+      chatPlaceholder: 'Send with Enter',
+      themeBtn: '🌙 Theme',
+      helpTitle: '❓ Help',
+      closeBtn: 'Close',
+      agreeBtn: 'Agree',
+      consentTitle: 'Consent to Data Collection',
+      consentMessage: 'By using this service, you consent to the collection and use of personal information (email, IP address, usage logs). Do not input sensitive information.',
+      docListTitle: 'Documents',
+      chatListTitle: 'Chat History',
+      termsTitle: 'Terms of Service',
+      privacyTitle: 'Privacy Policy',
+      usageTitle: 'Usage Guide',
+      footerWarning: '⚠️ AI output may contain errors. <strong>Always verify important content.</strong><br/>⚠️ Do not input or save sensitive information.',
+      helpContent: {
+        termsOfService: ['1. This service is an AI-powered thought organization tool.', '2. Users are responsible for all content used with the service.', '3. The service may change without notice.'],
+        privacyPolicy: ['1. Collected items: Email, IP address, usage logs.', '2. Purpose of use: Service provision and improvement, location-based recommendations.', '3. Retention period: Deleted upon user request.', '4. Third-party sharing: Not provided.'],
+        usageGuide: ['1. Enter text in the editor: AI suggestions appear automatically (if enabled).', '2. Save documents with the save button (login required).', '3. Chat with AI using the chat feature.', '4. Insert web content via search.', '5. Switch to dark mode with the theme toggle.', '6. Select modes for research, journalism, legal documents, or development support.', '7. Rename titles with the ✏️ button in the document list.', '8. Change the recommendation language via the header language selection.']
+      },
+      offlineAlert: 'Please check your internet connection. Switching to local mode.',
+      saveSuccess: '✅ Saved to Google Drive',
+      saveLocal: 'Google Drive save failed. Saved locally as "%s"',
+      exportSuccess: '✅ Saved to Google Drive. Open in Google Docs to view.',
+      exportLocal: 'Google Drive export failed. Saved locally as "%s"',
+      titlePrompt: 'Enter document title:',
+      renamePrompt: 'Enter new title:',
+      reviewPrompt: 'Would you like to review the document?',
+      noResponse: 'Could not generate a response.',
+      searchConfirm: 'Search for',
+      searchGoogle: 'on Google?',
+      noResults: 'No search results',
+      openBtn: 'Open',
+      insertBtn: 'Insert',
+      editorPlaceholder: 'Type here...',
+      charCount: 'characters',
+      modeChange: 'Mode changed',
+      journalistPrompt: 'Provides suggestions for writing news articles.',
+      researchPrompt: 'Provides suggestions for research papers.',
+      lawPrompt: 'Provides suggestions for drafting legal documents.',
+      devPrompt: 'Provides code snippet and debugging suggestions.',
+      basicPrompt: 'Provides general writing suggestions.'
+    },
+    ko: {
+      newDoc: '새 문서 만들기',
+      save: '저장',
+      export: 'Drive로 내보내기',
+      emptyCTA: '아직 저장된 문서가 없습니다.<br/><button id="newDocBtn" aria-label="새 문서 만들기">+ 새 문서 만들기</button>',
+      loginGate: '로그인이 필요합니다',
+      loginMessage: '저장 또는 내보내기 기능을 사용하려면 로그인하세요.',
+      loginButton: 'Google 로그인',
+      logout: '로그아웃',
+      settingsTitle: '설정',
+      settingsClose: '닫기',
+      enableSuggestions: '맞춤 추천 활성화',
+      enableInstant: '즉시 추천 활성화 (모바일 단일 단어 입력)',
+      searchPlaceholder: '검색 (/ 또는 Ctrl+K)',
+      searchBtn: '🔍 검색',
+      foldBtn: '📄 접기/펼치기',
+      chatBtn: '💬 채팅',
+      chatHeader: '💬 Gemini 채팅',
+      chatPlaceholder: 'Enter로 전송',
+      themeBtn: '🌙 테마',
+      helpTitle: '❓ 도움말',
+      closeBtn: '닫기',
+      agreeBtn: '확인',
+      consentTitle: '개인정보 수집·이용 동의',
+      consentMessage: '본 서비스를 이용하면 개인정보(이메일, IP 주소, 사용 로그) 수집·이용에 동의한 것으로 간주됩니다.<br/>민감정보는 입력하지 마세요.',
+      docListTitle: '문서 목록',
+      chatListTitle: '채팅 기록',
+      termsTitle: '이용약관',
+      privacyTitle: '개인정보처리방침',
+      usageTitle: '이용법',
+      footerWarning: '⚠️ AI 출력은 오류가 있을 수 있습니다. <strong>중요한 내용은 반드시 검증하세요.</strong><br/>⚠️ 민감정보는 입력·저장하지 마세요.',
+      helpContent: {
+        termsOfService: ['1. 본 서비스는 AI를 이용한 생각 정리 도구입니다.', '2. 사용자는 서비스 이용 시 모든 콘텐츠에 대한 책임을 집니다.', '3. 서비스는 예고 없이 변경될 수 있습니다.'],
+        privacyPolicy: ['1. 수집 항목: 이메일, IP 주소, 사용 로그.', '2. 이용 목적: 서비스 제공 및 개선, 지역 기반 추천 제공.', '3. 보유기간: 사용자가 요청 시 삭제.', '4. 제3자 제공: 제공하지 않습니다.'],
+        usageGuide: ['1. 에디터에 텍스트 입력: AI 제안이 자동으로 나타납니다 (활성화 시).', '2. 저장 버튼으로 문서 저장 (로그인 필요).', '3. 채팅 기능으로 AI와 대화.', '4. 검색으로 웹 콘텐츠 삽입.', '5. 테마 전환으로 다크모드 사용.', '6. 모드 선택으로 리서치, 기사, 법률 문서, 개발 작업 지원.', '7. 문서 목록에서 ✏️ 버튼으로 제목 변경 가능.', '8. 헤더에서 언어 선택으로 추천 언어 변경 가능.']
+      },
+      offlineAlert: '인터넷 연결을 확인하세요. 로컬 모드로 전환합니다.',
+      saveSuccess: '✅ Google Drive에 저장되었습니다',
+      saveLocal: 'Google Drive 저장 실패. 로컬에 "%s"로 저장되었습니다',
+      exportSuccess: '✅ Google Drive에 저장되었습니다. Google Docs에서 확인하세요',
+      exportLocal: 'Google Drive 내보내기 실패. 로컬에 "%s"로 저장되었습니다',
+      titlePrompt: '문서 제목을 입력하세요:',
+      renamePrompt: '새 제목을 입력하세요:',
+      reviewPrompt: '문서를 검토해 드릴까요?',
+      noResponse: '답변을 생성할 수 없습니다.',
+      searchConfirm: '다음으로 검색:',
+      searchGoogle: 'Google에서 검색하시겠습니까?',
+      noResults: '검색 결과 없음',
+      openBtn: '이동',
+      insertBtn: '삽입',
+      editorPlaceholder: '여기에 글을 입력하세요...',
+      charCount: '자',
+      modeChange: '모드 변경',
+      journalistPrompt: '기사 작성에 도움이 되는 제안을 제공합니다.',
+      researchPrompt: '리서치 논문 작성에 적합한 제안을 제공합니다.',
+      lawPrompt: '법률 문서 작성에 필요한 제안을 제공합니다.',
+      devPrompt: '코드 작성 및 디버깅에 도움이 되는 제안을 제공합니다.',
+      basicPrompt: '일반적인 글쓰기 제안을 제공합니다.'
+    },
+    ja: {
+      newDoc: '新しいドキュメントを作成',
+      save: '保存',
+      export: 'Google Driveにエクスポート',
+      emptyCTA: 'まだ保存されたドキュメントがありません。<br/><button id="newDocBtn" aria-label="新しいドキュメントを作成">+ 新しいドキュメントを作成</button>',
+      loginGate: 'ログインが必要です',
+      loginMessage: '保存またはエクスポート機能を使用するにはログインしてください。',
+      loginButton: 'Googleログイン',
+      logout: 'ログアウト',
+      settingsTitle: '設定',
+      settingsClose: '閉じる',
+      enableSuggestions: 'パーソナライズされた提案を有効にする',
+      enableInstant: 'インスタント提案を有効にする（モバイル単語入力）',
+      searchPlaceholder: '検索 (/ または Ctrl+K)',
+      searchBtn: '🔍 検索',
+      foldBtn: '📄 折り畳む/展開する',
+      chatBtn: '💬 チャット',
+      chatHeader: '💬 Geminiチャット',
+      chatPlaceholder: 'Enterで送信',
+      themeBtn: '🌙 テーマ',
+      helpTitle: '❓ ヘルプ',
+      closeBtn: '閉じる',
+      agreeBtn: '同意する',
+      consentTitle: 'データ収集の同意',
+      consentMessage: '本サービスを利用することで、個人情報（メールアドレス、IPアドレス、使用ログ）の収集・利用に同意したものとみなされます。<br/>機密情報は入力しないでください。',
+      docListTitle: 'ドキュメント',
+      chatListTitle: 'チャット履歴',
+      termsTitle: '利用規約',
+      privacyTitle: 'プライバシーポリシー',
+      usageTitle: '使用ガイド',
+      footerWarning: '⚠️ AIの出力は正確でない場合があります。<strong>重要な内容は必ず確認してください。</strong><br/>⚠️ 機密情報は入力・保存しないでください。',
+      helpContent: {
+        termsOfService: ['1. 本サービスはAIを使用した思考整理ツールです。', '2. ユーザーはサービス利用時にすべてのコンテンツに責任を負います。', '3. サービスは予告なく変更されることがあります。'],
+        privacyPolicy: ['1. 収集項目：メールアドレス、IPアドレス、使用ログ。', '2. 利用目的：サービスの提供および改善、位置情報に基づく推薦。', '3. 保有期間：ユーザーのリクエストにより削除。', '4. 第三者提供：提供しません。'],
+        usageGuide: ['1. エディターにテキストを入力：AIの提案が自動的に表示されます（有効の場合）。', '2. 保存ボタンで文書を保存（ログインが必要）。', '3. チャット機能でAIと対話。', '4. 検索でウェブコンテンツを挿入。', '5. テーマ切替でダークモードを使用。', '6. モード選択でリサーチ、ジャーナリズム、法務文書、開発作業をサポート。', '7. 文書リストの✏️ボタンでタイトルを変更可能。', '8. ヘッダーの言語選択で推奨言語を変更可能。']
+      },
+      offlineAlert: 'インターネット接続を確認してください。ローカルモードに切り替えます。',
+      saveSuccess: '✅ Google Drive에 저장되었습니다',
+      saveLocal: 'Google Drive 저장 실패. 로컬에 "%s"로 저장되었습니다',
+      exportSuccess: '✅ Google Drive에 저장되었습니다. Google Docs에서 확인하세요',
+      exportLocal: 'Google Drive 내보내기 실패. 로컬에 "%s"로 저장되었습니다',
+      titlePrompt: 'ドキュメントのタイトルを入力してください：',
+      renamePrompt: '新しいタイトルを入力してください：',
+      reviewPrompt: 'ドキュメントを確認しますか？',
+      noResponse: '応答を生成できませんでした。',
+      searchConfirm: '検索：',
+      searchGoogle: 'Googleで検索しますか？',
+      noResults: '検索結果がありません',
+      openBtn: '移動',
+      insertBtn: '挿入',
+      editorPlaceholder: 'ここに入力してください...',
+      charCount: '文字',
+      modeChange: 'モード変更',
+      journalistPrompt: 'ニュース記事の作成に役立つ提案を提供します。',
+      researchPrompt: '研究論文の作成に適した提案を提供します。',
+      lawPrompt: '法務文書の作成に必要な提案を提供します。',
+      devPrompt: 'コードの作成とデバッグに役立つ提案を提供します。',
+      basicPrompt: '一般的なライティングの提案を提供します。'
+    }
+  };
+
+  /* ───────── Functions ───────── */
+  function showOfflineAlert() {
+    if (!offlineAlertShown) {
+      alert(languageLabels[preferredLanguage]?.offlineAlert || languageLabels.en.offlineAlert);
+      offlineAlertShown = true;
+      localStorage.setItem('offlineAlertShown', 'true');
+    }
+  }
+
+  async function getGeoLanguage() {
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      if (!response.ok) throw new Error('Geolocation API failed');
+      const data = await response.json();
+      const countryCode = data.country_code;
+      const languageMap = {
+        'US': 'en', 'CA': 'en', 'GB': 'en', 'AU': 'en',
+        'KR': 'ko',
+        'JP': 'ja',
+        'VN': 'vi',
+        'CN': 'zh',
+        'FR': 'fr'
+      };
+      const lang = languageMap[countryCode] || 'en';
+      localStorage.setItem('cachedGeoLanguage', lang);
+      const wordMap = {
+        'en': ['apple', 'book', 'car', 'dog', 'earth'],
+        'ko': ['공기놀이', '공기놀이', '공기놀이', '공기놀이', '공기놀이'],
+        'ja': ['ありがとう', 'あさ', 'あめ', 'あか', 'あし']
+      };
+      localStorage.setItem('cachedGeoWords', JSON.stringify(wordMap[lang] || []));
+      return lang;
+    } catch (e) {
+      console.error('Geolocation error:', e);
+      return cachedGeoLanguage || 'en';
+    }
+  }
+
+  function setLanguage(lang) {
+    preferredLanguage = ['en', 'ko', 'ja'].includes(lang) ? lang : cachedGeoLanguage || 'en';
+    localStorage.setItem('preferredLanguage', preferredLanguage);
+    const languageSelect = document.getElementById('languageSelect');
+    const mLanguageSelect = document.getElementById('mLanguageSelect');
+    if (languageSelect) languageSelect.value = preferredLanguage;
+    if (mLanguageSelect) mLanguageSelect.value = preferredLanguage;
+    updateUI(preferredLanguage);
+  }
+
+  function handleCredentialResponse(res) {
+    try {
+      const p = JSON.parse(atob(res.credential.split('.')[1]));
+      const loginDisplay = document.getElementById('loginDisplay');
+      if (loginDisplay) loginDisplay.textContent = `${p.name}`;
+      isLoggedIn = true;
+      const loginGate = document.getElementById('loginGate');
+      if (loginGate) loginGate.style.display = 'none';
+      const authBtn = document.getElementById('authBtn');
+      if (authBtn) {
+        authBtn.textContent = languageLabels[preferredLanguage]?.logout || languageLabels.en.logout;
+        authBtn.onclick = logout;
+      }
+      if (typeof gapi !== 'undefined') {
+        gapi.load('client', () => {
+          gapi.client.init({
+            apiKey: document.querySelector('meta[name="google-api-key"]').content,
+            clientId: document.querySelector('meta[name="google-signin-client_id"]').content,
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+            scope: "https://www.googleapis.com/auth/drive.file"
+          }).then(() => {
+            loadDocs();
+          }).catch(e => {
+            console.error('Drive init error:', e);
+            showOfflineAlert();
+          });
+        });
+      } else {
+        console.error('gapi is not defined');
+        showOfflineAlert();
+      }
+    } catch (e) {
+      console.error('Login error:', e);
+      showOfflineAlert();
+    }
+  }
+
+  function initGoogleLogin() {
+    if (typeof google !== 'undefined' && google.accounts) {
+      google.accounts.id.initialize({
+        client_id: document.querySelector('meta[name="google-signin-client_id"]').content,
+        callback: handleCredentialResponse,
+        use_fedcm_for_prompt: false
+      });
+      const authBtn = document.getElementById('authBtn');
+      if (authBtn) {
+        google.accounts.id.renderButton(authBtn, { theme: 'outline', size: 'small' });
+        google.accounts.id.prompt();
+      } else {
+        console.error('authBtn not found');
+        setTimeout(initGoogleLogin, 1000);
+      }
+    } else {
+      console.error('Google accounts API is not defined');
+      setTimeout(initGoogleLogin, 1000);
+    }
+  }
+
+  function logout() {
+    isLoggedIn = false;
+    const loginDisplay = document.getElementById('loginDisplay');
+    if (loginDisplay) loginDisplay.textContent = '';
+    const authBtn = document.getElementById('authBtn');
+    if (authBtn) {
+      authBtn.textContent = languageLabels[preferredLanguage]?.loginButton || languageLabels.en.loginButton;
+      authBtn.onclick = () => google.accounts.id.prompt();
+      if (typeof google !== 'undefined' && google.accounts) {
+        google.accounts.id.renderButton(authBtn, { theme: 'outline', size: 'small' });
+      }
+    }
+    const loginGate = document.getElementById('loginGate');
+    if (loginGate) loginGate.style.display = 'flex';
+    loadDocs();
+  }
+
+  function checkGate() {
+    if (!isLoggedIn) {
+      const loginGate = document.getElementById('loginGate');
+      if (loginGate) loginGate.style.display = 'flex';
+    }
+  }
+
+  function updateUI(lang) {
+    const labels = languageLabels[lang] || languageLabels.en;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (labels[key]) el.innerHTML = labels[key];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (labels[key]) el.placeholder = labels[key];
+    });
+    const editor = document.getElementById('editor');
+    if (editor) editor.setAttribute('data-placeholder', labels.editorPlaceholder);
+    const helpBox = document.getElementById('helpBox');
+    if (helpBox) {
+      helpBox.querySelector('#termsOfService').innerHTML = `<h4 data-i18n="termsTitle">${labels.termsTitle}</h4>` + 
+        (labels.helpContent.termsOfService || []).map(p => `<p>${p}</p>`).join('');
+      helpBox.querySelector('#privacyPolicy').innerHTML = `<h4 data-i18n="privacyTitle">${labels.privacyTitle}</h4>` + 
+        (labels.helpContent.privacyPolicy || []).map(p => `<p>${p}</p>`).join('');
+      helpBox.querySelector('#usageGuide').innerHTML = `<h4 data-i18n="usageTitle">${labels.usageTitle}</h4>` + 
+        (labels.helpContent.usageGuide || []).map(p => `<p>${p}</p>`).join('');
+    }
+  }
+
+  function waitForCKEditor() {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      const check = () => {
+        if (typeof ClassicEditor !== 'undefined') {
+          resolve();
+        } else if (Date.now() - start > 10000) {
+          reject(new Error('CKEditor load failed'));
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+
+  function loadLearnedData() {
+    try {
+      const data = localStorage.getItem('learnedSuggestions');
+      return data ? JSON.parse(data) : { en: [], ko: [], ja: [] };
+    } catch (e) {
+      console.error('Failed to load learned data:', e);
+      return { en: [], ko: [], ja: [] };
+    }
+  }
+
+  function saveLearnedData(data) {
+    try {
+      localStorage.setItem('learnedSuggestions', JSON.stringify(data));
+    } catch (e) {
+      console.error('Failed to save learned data:', e);
+    }
+  }
+
+  function updateLearnedData(word, lang, sentences) {
+    if (!['en', 'ko', 'ja'].includes(lang)) return;
+    const learnedData = loadLearnedData();
+    if (!learnedData[lang].some(w => w.word === word)) {
+      learnedData[lang].push({ word, sentences });
+      saveLearnedData(learnedData);
+    }
+  }
+
+  function appendChat(cls, txt) {
+    const div = document.createElement('div');
+    div.className = `chatMsg ${cls}`;
+    div.textContent = txt;
+    const chatLog = document.getElementById('chatLog');
+    if (chatLog) {
+      chatLog.appendChild(div);
+      chatLog.scrollTop = chatLog.scrollHeight;
+      saveChat();
+    }
+    return div;
+  }
+
+  function saveChat() {
+    const chatLog = document.getElementById('chatLog');
+    if (chatLog && chatLog.innerHTML) {
+      const timestamp = Date.now();
+      const title = `Chat-${new Date(timestamp).toISOString().replace(/[:.]/g, '-')}`;
+      localStorage.setItem(`chat-${timestamp}`, JSON.stringify({ title, html: chatLog.innerHTML }));
+      loadDocs();
+    }
+  }
+
+  async function sendChat(msg) {
+    const aiMsg = appendChat('ai', '⏳');
+    try {
+      const lang = detectLanguage(msg);
+      const r = await fetch(`${API}/gpt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: msg, language: lang })
+      });
+      if (!r.ok) throw new Error('Chat API failed');
+      const j = await r.json();
+      aiMsg.textContent = j.response?.text || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
+    } catch (e) {
+      console.error('Chat API error:', e);
+      aiMsg.textContent = (fallback(msg).sentences || [])[0] || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
+      showOfflineAlert();
+    }
+  }
+
   const PII_PATTERNS = [
     /\b\d{2,3}-\d{2,4}-\d{4}\b/g,
     /\b[0-9]{6}-[1-4][0-9]{6}\b/g,
     /(비밀번호|password)\s*[:=]?\s*\S+/gi,
-    /(주소)\s*[:=]?\s*.+/gi
+    /(주소|address)\s*[:=]?\s*.+/gi
   ];
-  const maskSensitive = t => PII_PATTERNS.reduce((s, r) => s.replace(r, '★ 민감정보 숨김 ★'), t);
+  const maskSensitive = t => PII_PATTERNS.reduce((s, r) => s.replace(r, '★ Hidden Sensitive Info ★'), t);
 
-  /* Fallback/Guess Intent/Post Suggest/Search API */
-  const KO_MAP = {
-    가: ['가방', '가게', '가구', '가족', '가치'],
-    나: ['나무', '나라', '나비', '나이', '나열'],
-    다: ['다리', '다짐', '다방', '다양', '다툼'],
-    라: ['라디오', '라면', '라벨', '라이브', '라운드'],
-    마: ['마음', '마을', '마법', '마차', '마켓'],
-    바: ['바다', '바람', '바늘', '바보', '바위'],
-    사: ['사과', '사랑', '사전', '사막', '사슴'],
-    아: ['아침', '아이', '아이스', '아파트', '아빠'],
-    자: ['자유', '자동차', '자료', '자연', '자전거'],
-    차: ['차량', '차트', '차표', '차이', '차원'],
-    카: ['카드', '카메라', '카카오', '카페', '카운트'],
-    타: ['타워', '타자', '타임', '타일', '타깃'],
-    파: ['파랑', '파도', '파워', '파일', '파티'],
-    하: ['하늘', '하트', '하이', '하마', '하루']
-  };
   const EN_MAP = {
-    a: ['apple', 'angel', 'album', 'area', 'award'],
-    b: ['banana', 'bird', 'bridge', 'brown', 'brave'],
-    c: ['city', 'cloud', 'circle', 'coffee', 'candle'],
-    d: ['dog', 'dance', 'dream', 'drama', 'draft'],
-    e: ['eagle', 'earth', 'energy', 'event', 'extra'],
-    f: ['flower', 'forest', 'future', 'focus', 'fresh'],
-    g: ['grape', 'green', 'garden', 'giant', 'glory'],
-    h: ['house', 'heart', 'happy', 'human', 'hobby'],
-    i: ['island', 'idea', 'image', 'issue', 'iron'],
-    j: ['juice', 'jungle', 'jewel', 'judge', 'joint'],
-    k: ['kite', 'king', 'kitchen', 'kit', 'kind'],
-    l: ['lion', 'light', 'logic', 'lake', 'leaf'],
-    m: ['moon', 'music', 'market', 'magic', 'model'],
-    n: ['night', 'note', 'nature', 'number', 'noble'],
-    o: ['ocean', 'orange', 'orbit', 'order', 'owner'],
-    p: ['piano', 'paper', 'peace', 'power', 'party'],
-    q: ['queen', 'quick', 'quiet', 'quest', 'quote'],
-    r: ['river', 'road', 'robot', 'rain', 'ready'],
-    s: ['sun', 'star', 'smart', 'story', 'style'],
-    t: ['tree', 'travel', 'table', 'trend', 'trust'],
-    u: ['umbrella', 'union', 'unique', 'urban', 'upper'],
-    v: ['violet', 'value', 'voice', 'visit', 'vivid'],
-    w: ['whale', 'water', 'world', 'window', 'wise'],
-    x: ['xylophone', 'xenon', 'xerox', 'xmas', 'x-ray'],
-    y: ['yacht', 'yellow', 'youth', 'yield', 'yummy'],
-    z: ['zebra', 'zero', 'zone', 'zoom', 'zen']
+    'a': ['apple', 'ant', 'arrow', 'art', 'animal'],
+    'b': ['banana', 'bird', 'book', 'ball', 'box'],
+    'c': ['cat', 'car', 'cake', 'cloud', 'city'],
+    'd': ['dog', 'door', 'dance', 'day', 'desk'],
+    'e': ['elephant', 'egg', 'ear', 'eye', 'earth'],
+    'f': ['fish', 'flower', 'forest', 'food', 'friend'],
+    'g': ['grape', 'garden', 'game', 'gate', 'girl'],
+    'h': ['house', 'hand', 'horse', 'head', 'hill'],
+    'i': ['ice', 'island', 'idea', 'ink', 'iron'],
+    'j': ['juice', 'jacket', 'jam', 'jet', 'job'],
+    'k': ['kite', 'king', 'key', 'kid', 'kind'],
+    'l': ['lion', 'lamp', 'lake', 'leaf', 'light'],
+    'm': ['moon', 'mouse', 'mountain', 'man', 'music'],
+    'n': ['night', 'nose', 'net', 'nest', 'name'],
+    'o': ['ocean', 'orange', 'owl', 'open', 'oil'],
+    'p': ['piano', 'pen', 'park', 'pig', 'paper'],
+    'q': ['queen', 'quiet', 'quilt', 'quiz', 'quarter'],
+    'r': ['rain', 'road', 'river', 'rose', 'run'],
+    's': ['sun', 'star', 'sea', 'song', 'school'],
+    't': ['tree', 'train', 'table', 'time', 'tiger'],
+    'u': ['umbrella', 'uncle', 'under', 'up', 'unit'],
+    'v': ['violet', 'van', 'vest', 'voice', 'view'],
+    'w': ['water', 'wind', 'wolf', 'window', 'wave'],
+    'x': ['xylophone', 'x-ray', 'xerox', 'xmas', 'x-axis'],
+    'y': ['yellow', 'yoga', 'yard', 'yes', 'year'],
+    'z': ['zebra', 'zero', 'zoo', 'zip', 'zone']
+  };
+  const JA_MAP = {
+    'あ': ['ありがとう', 'あさ', 'あめ', 'あか', 'あし'],
+    'い': ['いいえ', 'いぬ', 'いけ', 'いち', 'いす'],
+    'う': ['うみ', 'うた', 'うさぎ', 'うえ', 'うし'],
+    'え': ['えき', 'えん', 'えい', 'えき', 'えが'],
+    'お': ['おか', 'おに', 'おちゃ', 'おお', 'おや'],
+    'か': ['かお', 'かみ', 'かさ', 'かぜ', 'かき'],
+    'き': ['きん', 'きつ', 'きぼ', 'きみ', 'きん'],
+    'く': ['くも', 'くち', 'くつ', 'くま', 'くろ'],
+    'け': ['けい', 'けん', 'けさ', 'けん', 'けむ'],
+    'こ': ['こども', 'こえ', 'こい', 'こく', 'こま']
+  };
+  const JA_SENTENCES = {
+    'ja': ['こんにちは、お元気ですか？', '何ですか？', 'ありがとうございます。']
   };
   const koQA = w => `${w}이(가) 무엇인가요?`;
   const enQA = w => `What is ${w}?`;
-  const fallback = k => {
-    const ch = k[0] || 'a';
-    if (/[가-힣]/.test(ch)) {
-      const w = KO_MAP[ch] || KO_MAP['가'];
-      return { words: w, sentences: w.slice(0, 3).map(koQA) };
-    }
-    const w = EN_MAP[ch.toLowerCase()] || EN_MAP['a'];
-    return { words: w, sentences: w.slice(0, 3).map(enQA) };
+  const jaQA = w => `${w}とは何ですか?`;
+  const detectLanguage = k => {
+    const langSelect = document.getElementById('languageSelect')?.value || document.getElementById('mLanguageSelect')?.value;
+    if (langSelect && ['en', 'ko', 'ja'].includes(langSelect)) return langSelect;
+    if (!k) return cachedGeoLanguage || 'en';
+    if (/[a-zA-Z]/.test(k)) return 'en';
+    const ch = k[0];
+    if (/[가-힣]/.test(ch)) return 'ko';
+    if (/[ぁ-ん]/.test(ch)) return 'ja';
+    if (/[ăâđêôơư]/.test(ch)) return 'vi';
+    if (/[\u4e00-\u9fff]/.test(ch)) return 'zh';
+    if (/[éèêëçàâäîïôöùûü]/.test(ch)) return 'fr';
+    return cachedGeoLanguage || 'en';
   };
-  const guessIntent = t => /^[가-힣]{1,2}$/.test(t) ? 'define' : /\?\s*$/.test(t) ? 'ask' : (/[.!?]$/.test(t) && t.split(' ').length > 5) ? 'write' : 'other';
+  const getCachedWords = lang => {
+    return cachedGeoWords[lang] || (JSON.parse(localStorage.getItem('cachedGeoWords')) || []);
+  };
+  const fallback = k => {
+    const lang = detectLanguage(k);
+    const learnedData = loadLearnedData();
+    const learned = learnedData[lang].find(w => w.word === k);
+    if (learned) {
+      return { words: learned.sentences.map(s => s.split(' ')[0]), sentences: learned.sentences };
+    }
+    if (!navigator.onLine) {
+      const cachedWords = getCachedWords(lang);
+      if (cachedWords.length) {
+        return { words: cachedWords, sentences: cachedWords.slice(0, 3).map(w => {
+          return lang === 'en' ? enQA(w) : lang === 'ko' ? koQA(w) : jaQA(w);
+        }) };
+      }
+    }
+    if (lang === 'ko') {
+      return { words: [k], sentences: [koQA(k)] };
+    } else if (lang === 'ja') {
+      const w = JA_MAP[k[0]] || JA_MAP['あ'];
+      const s = JA_SENTENCES['ja'] || [];
+      return { words: w, sentences: [...w.slice(0, 2).map(jaQA), ...s] };
+    } else {
+      const w = EN_MAP[k[0]?.toLowerCase()] || EN_MAP['a'];
+      return { words: w, sentences: w.slice(0, 3).map(enQA) };
+    }
+  };
+  const guessIntent = t => /^[가-힣]{1,2}$/.test(t) || /^[ぁ-ん]/.test(t) ? 'define' : /\?\s*$/.test(t) ? 'ask' : (/[.!?]$/.test(t) && t.split(' ').length > 5) ? 'write' : 'other';
   const postSuggest = async k => {
     if (!enableSuggestions || k.trim().length < 2) return fallback(k);
     try {
       let modePrompt = '';
       switch (mode) {
-        case 'journalist': modePrompt = 'Provide suggestions for writing a news article about '; break;
-        case 'research': modePrompt = 'Provide suggestions for a research paper on '; break;
-        case 'law': modePrompt = 'Provide suggestions for drafting a legal document about '; break;
-        case 'dev': modePrompt = 'Provide code snippet suggestions for '; break;
-        default: modePrompt = 'Provide general writing suggestions for '; break;
+        case 'journalist': modePrompt = languageLabels[preferredLanguage]?.journalistPrompt || languageLabels.en.journalistPrompt; break;
+        case 'research': modePrompt = languageLabels[preferredLanguage]?.researchPrompt || languageLabels.en.researchPrompt; break;
+        case 'law': modePrompt = languageLabels[preferredLanguage]?.lawPrompt || languageLabels.en.lawPrompt; break;
+        case 'dev': modePrompt = languageLabels[preferredLanguage]?.devPrompt || languageLabels.en.devPrompt; break;
+        default: modePrompt = languageLabels[preferredLanguage]?.basicPrompt || languageLabels.en.basicPrompt; break;
       }
+      const lang = detectLanguage(k);
       const r = await fetch(`${API}/suggestAI`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: modePrompt + k, mode, intent: guessIntent(k), context: '' })
+        body: JSON.stringify({ keyword: modePrompt + ' ' + k, mode, intent: guessIntent(k), context: '', language: lang })
       });
       if (!r.ok) throw new Error('Suggest API failed');
-      return await r.json();
-    } catch {
+      const result = await r.json();
+      updateLearnedData(k, lang, result.sentences || []);
+      return result;
+    } catch (e) {
+      console.error('Suggest API error:', e);
+      showOfflineAlert();
       return fallback(k);
     }
   };
   const searchAPI = async q => {
     try {
-      const r = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+      const lang = detectLanguage(q);
+      const r = await fetch(`${API}/search?q=${encodeURIComponent(q)}&language=${lang}`);
       if (!r.ok) throw new Error('Search API failed');
       return (await r.json()).links || [];
-    } catch {
+    } catch (e) {
+      console.error('Search API error:', e);
+      showOfflineAlert();
       return [];
     }
   };
-  const popup = $('previewPopup');
-  const hidePopup = () => popup.style.display = 'none';
-  const showPopup = (html, l, t) => {
-    popup.innerHTML = html;
-    popup.style.left = l + 'px';
-    popup.style.top = t + 'px';
-    popup.style.display = 'block';
+
+  async function loadDocs() {
+    const docList = document.getElementById('docList');
+    const chatList = document.getElementById('chatList');
+    if (docList) docList.innerHTML = '';
+    if (chatList) chatList.innerHTML = '';
+
+    const localDocs = Object.keys(localStorage)
+      .filter(key => key.startsWith('doc-'))
+      .map(key => ({ key, ...JSON.parse(localStorage.getItem(key)), local: true }))
+      .sort((a, b) => b.key.localeCompare(a.key));
+
+    let driveDocs = [];
+    if (isLoggedIn && gapi.client.drive) {
+      try {
+        const response = await gapi.client.drive.files.list({
+          q: "name contains 'thinkhelper_doc_' and trashed = false",
+          fields: "files(id, name)"
+        });
+        driveDocs = response.result.files || [];
+        driveDocs.sort((a, b) => b.name.localeCompare(a.name));
+      } catch (e) {
+        console.error('Drive load error:', e);
+        showOfflineAlert();
+      }
+    }
+
+    const allDocs = [
+      ...driveDocs.map(file => ({
+        key: file.id,
+        title: file.name.replace('thinkhelper_doc_', '').replace('.html', ''),
+        local: false
+      })),
+      ...localDocs
+    ];
+
+    const emptyCTA = document.getElementById('emptyCTA');
+    if (!allDocs.length) {
+      if (emptyCTA) emptyCTA.style.display = 'block';
+    } else {
+      if (emptyCTA) emptyCTA.style.display = 'none';
+      allDocs.forEach(doc => {
+        const li = document.createElement('li');
+        li.textContent = doc.title;
+        li.onclick = async () => {
+          if (doc.local) {
+            if (window.editor) window.editor.setData(doc.html);
+          } else {
+            try {
+              const fileResponse = await gapi.client.drive.files.get({
+                fileId: doc.key,
+                alt: 'media'
+              });
+              if (window.editor) window.editor.setData(fileResponse.body);
+            } catch (e) {
+              console.error('Drive load error:', e);
+              showOfflineAlert();
+            }
+          }
+        };
+        const rename = document.createElement('span');
+        rename.textContent = '✏️';
+        rename.className = 'doc-rename';
+        rename.onclick = async e => {
+          e.stopPropagation();
+          const newTitle = prompt(languageLabels[preferredLanguage]?.renamePrompt || languageLabels.en.renamePrompt, doc.title);
+          if (newTitle && newTitle.trim()) {
+            if (doc.local) {
+              const content = JSON.parse(localStorage.getItem(doc.key)).html;
+              localStorage.removeItem(doc.key);
+              localStorage.setItem(`doc-${Date.now()}`, JSON.stringify({ title: newTitle.trim(), html: content }));
+              loadDocs();
+            } else {
+              try {
+                await gapi.client.drive.files.update({
+                  fileId: doc.key,
+                  resource: { name: `thinkhelper_doc_${newTitle.trim()}.html` }
+                });
+                loadDocs();
+              } catch (e) {
+                console.error('Rename error:', e);
+                showOfflineAlert();
+              }
+            }
+          }
+        };
+        const del = document.createElement('span');
+        del.textContent = '✖︎';
+        del.className = 'doc-del';
+        del.onclick = async e => {
+          e.stopPropagation();
+          if (doc.local) {
+            localStorage.removeItem(doc.key);
+            loadDocs();
+          } else {
+            try {
+              await gapi.client.drive.files.delete({ fileId: doc.key });
+              loadDocs();
+            } catch (e) {
+              console.error('Delete error:', e);
+              showOfflineAlert();
+            }
+          }
+        };
+        li.appendChild(rename);
+        li.appendChild(del);
+        if (docList) docList.appendChild(li);
+      });
+    }
+
+    const chatKeys = Object.keys(localStorage)
+      .filter(key => key.startsWith('chat-'))
+      .sort((a, b) => b.localeCompare(a));
+    chatKeys.forEach(key => {
+      try {
+        const { title, html } = JSON.parse(localStorage.getItem(key));
+        const li = document.createElement('li');
+        li.textContent = title;
+        li.onclick = () => {
+          const chatLog = document.getElementById('chatLog');
+          const chatPanel = document.getElementById('chatPanel');
+          if (chatLog && chatPanel) {
+            chatLog.innerHTML = html;
+            chatPanel.style.display = 'flex';
+          }
+        };
+        const del = document.createElement('span');
+        del.textContent = '✖︎';
+        del.className = 'chat-del';
+        del.onclick = e => {
+          e.stopPropagation();
+          localStorage.removeItem(key);
+          loadDocs();
+        };
+        li.appendChild(del);
+        if (chatList) chatList.appendChild(li);
+      } catch (e) {
+        console.error(`Failed to parse chat ${key}:`, e);
+      }
+    });
+  }
+
+  async function saveDoc() {
+    if (!isLoggedIn) {
+      checkGate();
+      return;
+    }
+    const html = window.editor ? window.editor.getData() : '';
+    const defaultTitle = html.replace(/<[^>]*>/g, '').trim().split(/[\n\.]/)[0] || 'Untitled';
+    const title = prompt(languageLabels[preferredLanguage]?.titlePrompt || languageLabels.en.titlePrompt, defaultTitle);
+    if (!title || !title.trim()) return;
+
+    try {
+      const meta = { name: `thinkhelper_doc_${title.trim()}.html`, mimeType: 'text/html' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file', new Blob([html], { type: 'text/html' }));
+      const token = gapi.auth.getToken()?.access_token;
+      if (!token) throw new Error('No access token');
+      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+        body: form
+      });
+      const j = await r.json();
+      if (j.id) {
+        alert(languageLabels[preferredLanguage]?.saveSuccess || languageLabels.en.saveSuccess);
+        loadDocs();
+        if (confirm(languageLabels[preferredLanguage]?.reviewPrompt || languageLabels.en.reviewPrompt)) {
+          const chatPanel = document.getElementById('chatPanel');
+          if (chatPanel) chatPanel.style.display = 'flex';
+          appendChat('ai', languageLabels[preferredLanguage]?.reviewPrompt || languageLabels.en.reviewPrompt);
+          const ai = appendChat('ai', '⏳');
+          try {
+            const lang = detectLanguage(html);
+            const r = await fetch(`${API}/gpt`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: `Generate questions about this document: ${html}`, language: lang })
+            });
+            if (!r.ok) throw new Error('Chat API failed');
+            const j = await r.json();
+            ai.textContent = j.response?.text || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
+          } catch (e) {
+            console.error('Chat API error:', e);
+            ai.textContent = (fallback(html).sentences || [])[0] || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
+            showOfflineAlert();
+          }
+        }
+        localStorage.removeItem('editorDraft');
+      } else {
+        throw new Error('Google Drive save failed');
+      }
+    } catch (e) {
+      console.error('Save error:', e);
+      localStorage.setItem(`doc-${Date.now()}`, JSON.stringify({ title: title.trim(), html }));
+      alert((languageLabels[preferredLanguage]?.saveLocal || languageLabels.en.saveLocal).replace('%s', title.trim()));
+      loadDocs();
+      showOfflineAlert();
+    }
+  }
+
+  async function exportDoc() {
+    if (!isLoggedIn) {
+      checkGate();
+      return;
+    }
+    const html = window.editor ? window.editor.getData() : '';
+    const defaultTitle = html.replace(/<[^>]*>/g, '').trim().split(/[\n\.]/)[0] || 'Untitled';
+    const title = prompt(languageLabels[preferredLanguage]?.titlePrompt || languageLabels.en.titlePrompt, defaultTitle);
+    if (!title || !title.trim()) return;
+
+    try {
+      const meta = { name: `thinkhelper_${title.trim()}`, mimeType: 'application/vnd.google-apps.document' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file', new Blob([html], { type: 'text/html' }));
+      const token = gapi.auth.getToken()?.access_token;
+      if (!token) throw new Error('No access token');
+      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+        body: form
+      });
+      const j = await r.json();
+      if (j.id) {
+        alert(languageLabels[preferredLanguage]?.exportSuccess || languageLabels.en.exportSuccess);
+        window.open(`https://docs.google.com/document/d/${j.id}/edit`, '_blank');
+        loadDocs();
+        localStorage.removeItem('editorDraft');
+      } else {
+        throw new Error('Google Drive export failed');
+      }
+    } catch (e) {
+      console.error('Export error:', e);
+      localStorage.setItem(`doc-${Date.now()}`, JSON.stringify({ title: title.trim(), html }));
+      alert((languageLabels[preferredLanguage]?.exportLocal || languageLabels.en.exportLocal).replace('%s', title.trim()));
+      loadDocs();
+      showOfflineAlert();
+    }
+  }
+
+  const popup = document.getElementById('previewPopup');
+  const sug = document.getElementById('suggestions');
+  const hidePopup = () => {
+    if (popup) popup.style.display = 'none';
   };
+  const showPopup = (html, l, t) => {
+    if (popup) {
+      popup.innerHTML = html;
+      popup.style.left = l + 'px';
+      popup.style.top = t + 'px';
+      popup.style.display = 'block';
+    }
+  };
+
+  function handleKeydown(e, editor, suggestionList) {
+    if (!sug || sug.style.display !== 'block') return;
+    const suggestionItems = sug.querySelectorAll('.suggestion-item');
+    if (!suggestionItems.length) return;
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = selectedIndex <= 0 ? suggestionItems.length - 1 : selectedIndex - 1;
+      suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
+      suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = selectedIndex >= suggestionItems.length - 1 ? 0 : selectedIndex + 1;
+      suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
+      suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Tab' && selectedIndex !== -1) {
+      e.preventDefault();
+      const txt = maskSensitive(suggestionList[selectedIndex]);
+      editor.model.change(writer => {
+        writer.insertText(txt + ' ', editor.model.document.selection.getFirstPosition());
+      });
+      sug.style.display = 'none';
+      selectedIndex = -1;
+    }
+  }
+
   document.addEventListener('click', e => {
-    if (!popup.contains(e.target)) hidePopup();
-    if (window.innerWidth <= 430 && !$(e.target).closest('#wrap, #menuToggle, #aside, #loginGate, #chatPanel, #consent, #settingsModal, #helpModal')) {
+    if (popup && !popup.contains(e.target)) hidePopup();
+    if (sug && sug.style.display === 'block' && !sug.contains(e.target)) {
+      sug.style.display = 'none';
+      selectedIndex = -1;
+    }
+    if (window.innerWidth <= 430 && !e.target.closest('#wrap, #menuToggle, #aside, #loginGate, #chatPanel, #consent, #settingsModal, #helpModal')) {
       document.body.classList.remove('menu-open');
     }
   });
 
-  /* CKEditor */
-  ClassicEditor.create($('editor')).then(ed => {
-    window.editor = ed;
+  window.onload = async function() {
     startTime = Date.now();
 
-    ed.model.document.on('change:data', () => {
-      $('charCount').textContent = ed.getData().replace(/<[^>]*>/g, '').length + '자';
-    });
+    if (!preferredLanguage) {
+      preferredLanguage = await getGeoLanguage();
+      setLanguage(preferredLanguage);
+    } else {
+      setLanguage(preferredLanguage);
+    }
 
-    /* Suggestions */
-    const sug = $('suggestions');
-    ed.model.document.on('change:data', deb(async () => {
-      if (!enableSuggestions) {
-        sug.style.display = 'none';
-        return;
-      }
-      const plain = ed.getData().replace(/<[^>]*>/g, '');
-      const pos = ed.model.document.selection.getFirstPosition();
-      const word = plain.slice(0, pos.offset).match(/(\S+)$/)?.[1] || '';
-      if (!word) {
-        sug.style.display = 'none';
-        return;
-      }
-      if (enableInstant && window.innerWidth <= 430 && plain.trim().split(/\s+/).length === 1) {
-        const topic = prompt('주제를 입력하세요:');
-        if (topic) {
-          try {
-            const r = await fetch(`${API}/gpt`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: `Generate ${mode === 'journalist' ? 'a news article' : mode === 'research' ? 'a research summary' : mode === 'law' ? 'a legal document' : mode === 'dev' ? 'a code snippet' : 'content'} about ${topic} related to ${word}` })
-            });
-            const j = await r.json();
-            const generated = j.response?.text || '(오류)';
-            ed.model.change(writer => {
-              writer.insertText(generated, ed.model.document.selection.getFirstPosition());
-            });
-          } catch {
-            alert('(서버 오류)');
-          }
-          return;
+    initGoogleLogin();
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+      loginBtn.onclick = () => {
+        if (typeof google !== 'undefined' && google.accounts) {
+          google.accounts.id.prompt();
         }
-      }
-      const { words, sentences } = await postSuggest(word);
-      const list = sentences.length ? sentences : words.slice(0, 5);
-      if (!list.length) {
-        sug.style.display = 'none';
-        return;
-      }
-      const rangeRect = window.getSelection().getRangeAt(0).getBoundingClientRect();
-      const wrapRect = $('wrap').getBoundingClientRect();
-      sug.innerHTML = list.map((t, i) => `<div class="suggestion-item" data-i="${i}">${DOMPurify.sanitize(t)}</div>`).join('');
-      sug.querySelectorAll('.suggestion-item').forEach(el => {
-        el.onclick = () => {
-          const txt = maskSensitive(list[+el.dataset.i]);
-          ed.model.change(writer => {
-            writer.insertText(txt + ' ', ed.model.document.selection.getFirstPosition());
-          });
-          sug.style.display = 'none';
-        };
+      };
+    }
+
+    const $ = id => document.getElementById(id);
+    const deb = (fn, ms = 400) => {
+      let t;
+      return (...a) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...a), ms);
+      };
+    };
+
+    let enableSuggestions = localStorage.getItem('enableSuggestions') !== 'false';
+    let enableInstant = localStorage.getItem('enableInstant') !== 'false';
+    const enableSuggestionsInput = $('enableSuggestions');
+    const enableInstantInput = $('enableInstant');
+    if (enableSuggestionsInput) enableSuggestionsInput.checked = enableSuggestions;
+    if (enableInstantInput) enableInstantInput.checked = enableInstant;
+    if (enableSuggestionsInput) {
+      enableSuggestionsInput.onchange = () => {
+        enableSuggestions = enableSuggestionsInput.checked;
+        localStorage.setItem('enableSuggestions', enableSuggestions);
+      };
+    }
+    if (enableInstantInput) {
+      enableInstantInput.onchange = () => {
+        enableInstant = enableInstantInput.checked;
+        localStorage.setItem('enableInstant', enableInstant);
+      };
+    }
+    const settingsBtn = $('settingsBtn');
+    const mSettingsBtn = $('mSettingsBtn');
+    const settingsCloseBtn = $('settingsCloseBtn');
+    const settingsModal = $('settingsModal');
+    if (settingsBtn) settingsBtn.onclick = () => { if (settingsModal) settingsModal.style.display = 'flex'; };
+    if (mSettingsBtn) mSettingsBtn.onclick = () => { if (settingsModal) settingsModal.style.display = 'flex'; };
+    if (settingsCloseBtn) settingsCloseBtn.onclick = () => { if (settingsModal) settingsModal.style.display = 'none'; };
+    if (settingsModal) {
+      settingsModal.addEventListener('click', e => {
+        if (e.target === settingsModal) settingsModal.style.display = 'none';
       });
-      sug.style.visibility = 'hidden';
-      sug.style.display = 'block';
-      const h = sug.offsetHeight, w = sug.offsetWidth;
-      sug.style.visibility = 'visible';
-      let top = rangeRect.bottom - wrapRect.top + 4;
-      let left = Math.min(Math.max(rangeRect.left - wrapRect.left, 0), wrapRect.width - w);
-      if (top + h > wrapRect.height) {
-        top = rangeRect.top - wrapRect.top - h - 4;
-        if (top < 0) top = wrapRect.height - h;
-      }
-      sug.style.left = `${left}px`;
-      sug.style.top = `${top}px`;
-    }, 250));
+    }
 
-    /* Search Autocomplete */
-    const ac = $('autocomplete');
-    $('searchInput').addEventListener('input', deb(async e => {
-      const q = e.target.value.trim();
-      if (q.length < 2) {
-        ac.style.display = 'none';
-        return;
-      }
-      const links = await searchAPI(q);
-      ac.innerHTML = links.slice(0, 6).map((l, i) => `
-        <li data-i="${i}">
-          <strong>${DOMPurify.sanitize(l.title)}</strong><br>
-          <small>${DOMPurify.sanitize(l.snippet)}</small><br>
-          <button class="btn tiny" data-open="${l.link}">이동</button>
-        </li>`).join('');
-      ac.querySelectorAll('li').forEach(li => {
-        const item = links[+li.dataset.i];
-        li.onclick = () => {
-          const wRect = $('wrap').getBoundingClientRect();
-          const r = li.getBoundingClientRect();
-          showPopup(`<h4>${DOMPurify.sanitize(item.title)}</h4><p>${DOMPurify.sanitize(item.snippet)}</p><button id="btnInsert">삽입</button>`,
-            r.left - wRect.left, r.bottom - wRect.top + 4);
-          document.getElementById('btnInsert').onclick = () => {
-            ac.style.display = 'none';
-            hidePopup();
-            ed.model.change(writer => {
-              const h = `<blockquote><p><a href="${item.link}" target="_blank">${DOMPurify.sanitize(item.title)}</a></p><small>${DOMPurify.sanitize(item.snippet)}</small></blockquote><p></p>`;
-              writer.insert(ed.data.toModel(ed.data.processor.toView(h)), ed.model.document.selection.getFirstPosition());
-            });
-          };
-        };
-        li.querySelector('[data-open]').onclick = e => {
-          e.stopPropagation();
-          window.open(e.currentTarget.dataset.open, '_blank');
-        };
-      });
-      ac.style.display = links.length ? 'block' : 'none';
-    }, 250));
-    $('searchInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        $('searchBtn').click();
-      }
-    });
+    function setTheme(dark) {
+      document.body.classList.toggle('dark', dark);
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+    }
+    const savedTheme = localStorage.getItem('theme');
+    const isDark = savedTheme ? savedTheme === 'dark' : (new Date().getHours() >= 18 || new Date().getHours() < 6);
+    setTheme(isDark);
+    const themeBtn = $('themeBtn');
+    const mThemeBtn = $('mThemeBtn');
+    if (themeBtn) themeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
+    if (mThemeBtn) mThemeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
 
-    $('searchBtn').onclick = () => {
-      const q = $('searchInput').value.trim();
-      if (!q) return;
-      if (confirm(`Google에서 "${q}" 검색하시겠습니까?`)) {
-        window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
-        return;
-      }
-      searchAPI(q).then(links => {
-        if (!links.length) {
-          alert('검색결과 없음');
-          return;
-        }
-        const it = links[0];
-        ed.model.change(writer => {
-          const h = `<blockquote><p><a href="${it.link}" target="_blank">${DOMPurify.sanitize(it.title)}</a></p><small>${DOMPurify.sanitize(it.snippet)}</small></blockquote><p></p>`;
-          writer.insert(ed.data.toModel(ed.data.processor.toView(h)), ed.model.document.selection.getFirstPosition());
-        });
-      });
+    const consent = $('consent');
+    const agreeBtn = $('agreeBtn');
+    if (!localStorage.getItem('consent-ok') && consent && agreeBtn) {
+      consent.style.display = 'block';
+      agreeBtn.onclick = () => {
+        localStorage.setItem('consent-ok', '1');
+        consent.style.display = 'none';
+      };
+    }
+
+    const foldBtn = $('foldBtn');
+    if (foldBtn) foldBtn.onclick = () => {
+      const wrap = $('wrap');
+      if (wrap) wrap.classList.toggle('collapsed');
     };
 
-    /* Save / Load Docs */
-    const loadDocs = () => {
-      const ul = $('docList');
-      ul.innerHTML = '';
-      const ks = Object.keys(localStorage).filter(k => k.startsWith('doc-')).sort().reverse();
-      $('emptyCTA').style.display = ks.length ? 'none' : 'block';
-      if (!ks.length) return;
-      ks.forEach(k => {
-        try {
-          const { title, html } = JSON.parse(localStorage.getItem(k));
-          const li = document.createElement('li');
-          li.textContent = title;
-          li.onclick = () => ed.setData(html);
-          const del = document.createElement('span');
-          del.textContent = '✖︎';
-          del.className = 'doc-del';
-          del.onclick = e => {
-            e.stopPropagation();
-            localStorage.removeItem(k);
-            loadDocs();
-          };
-          li.appendChild(del);
-          ul.appendChild(li);
-        } catch (e) {
-          console.error(`Failed to parse doc ${k}:`, e);
-        }
-      });
-    };
-    $('saveBtn').onclick = () => {
-      if (!isLoggedIn) {
-        checkGate();
-        return;
-      }
-      const html = ed.getData();
-      const title = html.replace(/<[^>]*>/g, '').trim().split(/[\n\.]/)[0] || '무제';
-      localStorage.setItem('doc-' + Date.now(), JSON.stringify({ title, html }));
-      loadDocs();
-      appendChat('ai', '문서를 검토해 드릴까요?');
-      $('chatPanel').style.display = 'flex';
-    };
-    $('newDocBtn').onclick = () => ed.setData('');
-    loadDocs();
+    const modeSelect = $('modeSelect');
+    const mModeSelect = $('mModeSelect');
+    if (modeSelect) {
+      modeSelect.value = mode;
+      modeSelect.onchange = e => {
+        mode = e.target.value;
+        localStorage.setItem('mode', mode);
+        applyModePrompt(mode);
+      };
+    }
+    if (mModeSelect) {
+      mModeSelect.value = mode;
 
-    /* Drive Export */
-    $('exportBtn').onclick = async () => {
-      if (!isLoggedIn) {
-        checkGate();
-        return;
-      }
-      const htmlContent = window.editor.getData();
-      const meta = { name: 'thinkhelper.html', mimeType: 'application/vnd.google-apps.document' };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file', new Blob([htmlContent], { type: 'text/html' }));
-      try {
-        const token = gapi.auth.getToken()?.access_token;
-        if (!token) throw new Error('No access token available');
-        const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + token },
-          body: form
-        });
-        const j = await r.json();
-        if (j.id) {
-          window.open(`https://docs.google.com/document/d/${j.id}/edit`, '_blank');
-        } else {
-          throw new Error('Upload failed');
-        }
-      } catch (e) {
-        console.error(e);
-        alert('Google Docs 업로드 실패');
-      }
-    };
+      mModeSelect.onchange = e => {
+        mode = e.target.value;
+        localStorage.setItem('mode', mode);
+        applyModePrompt(mode);
+      };
+    }
+    applyModePrompt(mode);
 
-    /* Chat */
-    $('chatBtn').onclick = () => $('chatPanel').style.display = 'flex';
-    $('mChatBtn').onclick = () => $('chatPanel').style.display = 'flex';
-    $('chatClose').onclick = () => $('chatPanel').style.display = 'none';
+    function applyModePrompt(mode) {
+      const prompts = {
+        journalist: languageLabels[preferredLanguage]?.journalistPrompt || languageLabels.en.journalistPrompt,
+        research: languageLabels[preferredLanguage]?.researchPrompt || languageLabels.en.researchPrompt,
+        law: languageLabels[preferredLanguage]?.lawPrompt || languageLabels.en.lawPrompt,
+        dev: languageLabels[preferredLanguage]?.devPrompt || languageLabels.en.devPrompt,
+        basic: languageLabels[preferredLanguage]?.basicPrompt || languageLabels.en.basicPrompt
+      };
+      const promptText = prompts[mode] || prompts.basic;
+      appendChat('ai', `${languageLabels[preferredLanguage]?.modeChange || languageLabels.en.modeChange}: ${promptText}`);
+    }
 
-    const appendChat = (cls, txt) => {
-      const d = document.createElement('div');
-      d.className = 'chatMsg ' + cls;
-      d.textContent = txt;
-      $('chatLog').appendChild(d);
-      $('chatLog').scrollTop = $('chatLog').scrollHeight;
-      saveChat();
-      return d;
-    };
-    const saveChat = () => localStorage.setItem('chat-history', $('chatLog').innerHTML);
-    const loadChat = () => {
-      const h = localStorage.getItem('chat-history');
-      if (h) $('chatLog').innerHTML = h;
-    };
-    loadChat();
+    const languageSelect = $('languageSelect');
+    const mLanguageSelect = $('mLanguageSelect');
+    if (languageSelect) languageSelect.onchange = e => setLanguage(e.target.value);
+    if (mLanguageSelect) mLanguageSelect.onchange = e => setLanguage(e.target.value);
 
-    $('chatInput').addEventListener('keydown', async e => {
-      if (e.key !== 'Enter' || e.isComposing) return;
-      const q = e.target.value.trim();
-      if (!q) return;
-      e.target.value = '';
-      appendChat('user', q);
-      const ai = appendChat('ai', '⏳');
-      try {
-        const r = await fetch(`${API}/gpt`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: q })
-        });
-        const j = await r.json();
-        ai.textContent = j.response?.text || '(오류)';
-      } catch {
-        ai.textContent = '(서버 오류)';
-      }
-      saveChat();
-    });
-
-    /* Help Modal */
-    $('helpBtn').onclick = () => $('helpModal').style.display = 'flex';
-    $('mHelpBtn').onclick = () => $('helpModal').style.display = 'flex';
-    $('helpCloseBtn').onclick = () => $('helpModal').style.display = 'none';
-    $('helpModal').addEventListener('click', e => {
-      if (e.target === $('helpModal')) $('helpModal').style.display = 'none';
-    });
-
-    /* Mobile Menu Toggle */
-    $('menuToggle').onclick = () => {
-      document.body.classList.toggle('menu-open');
-    };
+    const menuToggle = $('menuToggle');
+    if (menuToggle) menuToggle.onclick = () => document.body.classList.toggle('menu-open');
     window.addEventListener('resize', () => {
       if (window.innerWidth > 430) document.body.classList.remove('menu-open');
     });
-  });
-};
-</script>
+
+    const chatBtn = $('chatBtn');
+    const mChatBtn = $('mChatBtn');
+    const chatClose = $('chatClose');
+    const chatInput = $('chatInput');
+    if (chatBtn) chatBtn.onclick = () => {
+      const chatPanel = $('chatPanel');
+      if (chatPanel) chatPanel.style.display = 'flex';
+    };
+    if (mChatBtn) mChatBtn.onclick = () => {
+      const chatPanel = $('chatPanel');
+      if (chatPanel) chatPanel.style.display = 'flex';
+    };
+    if (chatClose) chatClose.onclick = () => {
+      const chatPanel = $('chatPanel');
+      if (chatPanel) chatPanel.style.display = 'none';
+    };
+    if (chatInput) {
+      chatInput.addEventListener('keydown', async e => {
+        if (e.key !== 'Enter' || e.isComposing) return;
+        const q = e.target.value.trim();
+        if (!q) return;
+        e.target.value = '';
+        appendChat('user', q);
+        sendChat(q);
+      });
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        const chatPanel = $('chatPanel');
+        if (chatPanel && chatPanel.style.display === 'flex') {
+          chatPanel.style.display = 'none';
+        }
+        const sug = $('suggestions');
+        if (sug && sug.style.display === 'block') {
+          sug.style.display = 'none';
+          selectedIndex = -1;
+        }
+      }
+    });
+
+    const helpBtn = $('helpBtn');
+    const mHelpBtn = $('mHelpBtn');
+    const helpCloseBtn = $('helpCloseBtn');
+    const helpModal = $('helpModal');
+    if (helpBtn) helpBtn.onclick = () => { if (helpModal) helpModal.style.display = 'flex'; };
+    if (mHelpBtn) mHelpBtn.onclick = () => { if (helpModal) helpModal.style.display = 'flex'; };
+    if (helpCloseBtn) helpCloseBtn.onclick = () => { if (helpModal) helpModal.style.display = 'none'; };
+    if (helpModal) {
+      helpModal.addEventListener('click', e => {
+        if (e.target === helpModal) helpModal.style.display = 'none';
+      });
+    }
+
+    function handleKeydown(e, editor, suggestionList) {
+      if (!sug || sug.style.display !== 'block') return;
+      const suggestionItems = sug.querySelectorAll('.suggestion-item');
+      if (!suggestionItems.length) return;
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = selectedIndex <= 0 ? suggestionItems.length - 1 : selectedIndex - 1;
+        suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
+        suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = selectedIndex >= suggestionItems.length - 1 ? 0 : selectedIndex + 1;
+        suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
+        suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Tab' && selectedIndex !== -1) {
+        e.preventDefault();
+        const txt = maskSensitive(suggestionList[selectedIndex]);
+        editor.model.change(writer => {
+          writer.insertText(txt + ' ', editor.model.document.selection.getFirstPosition());
+        });
+        sug.style.display = 'none';
+        selectedIndex = -1;
+      }
+    }
+
+    waitForCKEditor().then(() => {
+      ClassicEditor.create($('editor')).then(ed => {
+        window.editor = ed;
+        const savedDraft = localStorage.getItem('editorDraft');
+        if (savedDraft) {
+          ed.setData(savedDraft);
+        }
+        ed.model.document.on('change:data', () => {
+          const charCount = $('charCount');
+          if (charCount) {
+            charCount.textContent = `${ed.getData().replace(/<[^>]*>/g, '').length} ${languageLabels[preferredLanguage]?.charCount || languageLabels.en.charCount}`;
+          }
+          localStorage.setItem('editorDraft', ed.getData());
+        });
+
+        const sug = $('suggestions');
+        let suggestionList = [];
+        ed.model.document.on('change:data', deb(async () => {
+          if (!enableSuggestions) {
+            sug.style.display = 'none';
+            return;
+          }
+          const plain = ed.getData().replace(/<[^>]*>/g, '');
+          const pos = ed.model.document.selection.getFirstPosition();
+          const word = plain.slice(0, pos.offset).match(/(\S+)$/)?.[1] || '';
+
+          if (!word) {
+            sug.style.display = 'none';
+            selectedIndex = -1;
+            return;
+          }
+
+          if (enableInstant && window.innerWidth <= 430 && plain.trim().split(/\s+/).length === 1 && !topicPromptShown) {
+            const topic = prompt(languageLabels[preferredLanguage]?.titlePrompt || languageLabels.en.titlePrompt);
+            topicPromptShown = true;
+            localStorage.setItem('topicPromptShown', 'true');
+            if (topic) {
+              try {
+                const lang = detectLanguage(topic);
+                const r = await fetch(`${API}/gpt`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    text: `Generate ${
+                      mode === 'journalist' ? 'a news article'
+                      : mode === 'research' ? 'a research summary'
+                      : mode === 'law' ? 'a legal document'
+                      : mode === 'dev' ? 'a code snippet'
+                      : 'content'
+                    } about ${topic} related to ${word}`,
+                    language: lang
+                  })
+                });
+                if (!r.ok) throw new Error('API failed');
+                const j = await r.json();
+                const generated = j.response?.text || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
+                ed.model.change(writer => {
+                  writer.insertText(generated + ' ', ed.model.document.selection.getFirstPosition());
+                });
+                updateLearnedData(word, lang, [generated]);
+              } catch (e) {
+                console.error('API error:', e);
+                showOfflineAlert();
+                const { words } = fallback(word);
+                ed.model.change(writer => {
+                  writer.insertText(words[0] || word, ed.model.document.selection.getFirstPosition());
+                });
+              }
+            }
+            return;
+          }
+
+          const { words, sentences } = await postSuggest(word);
+          suggestionList = sentences.length ? sentences : words.slice(0, 5);
+          if (!suggestionList.length) {
+            sug.style.display = 'none';
+            selectedIndex = -1;
+            return;
+          }
+
+          sug.innerHTML = suggestionList
+            .map((t, i) => `<div class="suggestion-item" data-i="${i}">${DOMPurify.sanitize(t)}</div>`)
+            .join('');
+          sug.querySelectorAll('.suggestion-item').forEach(el => {
+            el.onclick = () => {
+              const txt = maskSensitive(suggestionList[+el.dataset.i]);
+              ed.model.change(writer => {
+                writer.insertText(txt + ' ', ed.model.document.selection.getFirstPosition());
+              });
+              sug.style.display = 'none';
+              selectedIndex = -1;
+            };
+          });
+
+          const selRect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+          const wrapRect = $('wrap').getBoundingClientRect();
+          sug.style.visibility = 'hidden';
+          sug.style.display = 'block';
+          const h = sug.offsetHeight, w = sug.offsetWidth;
+          sug.style.visibility = 'visible';
+          let top = selRect.bottom - wrapRect.top + 4;
+          let left = Math.min(Math.max(selRect.left - wrapRect.left, 0), wrapRect.width - w);
+          if (top + h > wrapRect.height) {
+            top = selRect.top - wrapRect.top - h - 4;
+            if (top < 0) top = wrapRect.height - h;
+          }
+          sug.style.top = `${top}px`;
+          sug.style.left = `${left}px`;
+
+          document.removeEventListener('keydown', e => handleKeydown(e, ed, suggestionList));
+          document.addEventListener('keydown', e => handleKeydown(e, ed, suggestionList));
+        }, 400));
+
+        const ac = $('autocomplete');
+        const searchInput = $('searchInput');
+        if (searchInput) {
+          searchInput.addEventListener('input', deb(async e => {
+            const q = e.target.value.trim();
+            if (q.length < 2 || !ac) {
+              ac.style.display = 'none';
+              return;
+            }
+            const links = await searchAPI(q);
+            ac.innerHTML = links.slice(0, 6).map((l, i) => `
+              <li data-i="${i}">
+                <strong>${DOMPurify.sanitize(l.title)}</strong><br>
+                <small>${DOMPurify.sanitize(l.snippet)}</small><br>
+                <button class="btn tiny" data-open="${l.link}">${languageLabels[preferredLanguage]?.openBtn || languageLabels.en.openBtn}</button>
+              </li>`).join('');
+            ac.querySelectorAll('li').forEach(li => {
+              const item = links[+li.dataset.i];
+              li.onclick = () => {
+                const wrap = $('wrap');
+                if (!wrap) return;
+                const wRect = wrap.getBoundingClientRect();
+                const r = li.getBoundingClientRect();
+                showPopup(`<h4>${DOMPurify.sanitize(item.title)}</h4><p>${DOMPurify.sanitize(item.snippet)}</p><button id="btnInsert" class="btn tiny">${languageLabels[preferredLanguage]?.insertBtn || languageLabels.en.insertBtn}</button>`,
+                  r.left - wRect.left, r.bottom - wRect.top + 4);
+                const btnInsert = document.getElementById('btnInsert');
+                if (btnInsert) {
+                  btnInsert.onclick = () => {
+                    ac.style.display = 'none';
+                    hidePopup();
+                    ed.model.change(writer => {
+                      const h = `<blockquote><p><a href="${item.link}" target="_blank">${DOMPurify.sanitize(item.title)}</a></p><small>${DOMPurify.sanitize(item.snippet)}</small></blockquote><p></p>`;
+                      writer.insert(ed.data.toModel(ed.data.processor.toView(h)), ed.model.document.selection.getFirstPosition());
+                    });
+                  };
+                }
+              };
+              const openBtn = li.querySelector('[data-open]');
+              if (openBtn) {
+                openBtn.onclick = e => {
+                  e.stopPropagation();
+                  window.open(e.currentTarget.dataset.open, '_blank');
+                };
+              }
+            });
+            ac.style.display = links.length ? 'block' : 'none';
+          }, 400));
+
+          searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const searchBtn = $('searchBtn');
+              if (searchBtn) searchBtn.click();
+            }
+          });
+        }
+
+        const searchBtn = $('searchBtn');
+        if (searchBtn) {
+          searchBtn.onclick = () => {
+            const q = searchInput ? searchInput.value.trim() : '';
+            if (!q) return;
+            if (confirm(`${languageLabels[preferredLanguage]?.searchConfirm || languageLabels.en.searchConfirm} "${q}" ${languageLabels[preferredLanguage]?.searchGoogle || languageLabels.en.searchGoogle}`)) {
+              window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+              return;
+            }
+            searchAPI(q).then(links => {
+              if (!links.length) {
+                alert(languageLabels[preferredLanguage]?.noResults || languageLabels.en.noResults);
+                showOfflineAlert();
+                return;
+              }
+              const it = links[0];
+              ed.model.change(writer => {
+                const h = `<blockquote><p><a href="${it.link}" target="_blank">${DOMPurify.sanitize(it.title)}</a></p><small>${DOMPurify.sanitize(it.snippet)}</small></blockquote><p></p>`;
+                writer.insert(ed.data.toModel(ed.data.processor.toView(h)), ed.model.document.selection.getFirstPosition());
+              });
+            }).catch(e => {
+              console.error('Search API error:', e);
+              showOfflineAlert();
+            });
+          };
+        }
+
+        const newDocBtn = $('newDocBtn');
+        if (newDocBtn) {
+          newDocBtn.onclick = () => {
+            if (window.editor) window.editor.setData('');
+            topicPromptShown = false;
+            localStorage.removeItem('topicPromptShown');
+            localStorage.removeItem('editorDraft');
+          };
+        }
+
+        const saveBtn = $('saveBtn');
+        const exportBtn = $('exportBtn');
+        if (saveBtn) saveBtn.onclick = saveDoc;
+        if (exportBtn) exportBtn.onclick = exportDoc;
+        loadDocs();
+      }).catch(e => {
+        console.error('CKEditor initialization error:', e);
+        showOfflineAlert();
+      });
+    }).catch(e => {
+      console.error('CKEditor load error:', e);
+      showOfflineAlert();
+    });
+    
+  };
+  </script>
 </body>
-</html>
+</html
