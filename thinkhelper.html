@@ -1,1574 +1,1360 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://accounts.google.com https://www.gstatic.com https://cdn.ckeditor.com https://apis.google.com https://cdn.jsdelivr.net https://ipapi.co 'unsafe-inline' 'unsafe-eval'; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/ https://ipapi.co https://api-w7dmw4n5zq-du.a.run.app https://www.googleapis.com wss://5509-firebase-thinkhelper-1-1751178473634.cluster-bg6uurscprhn6qxr6xwtrhvkf6.cloudworkstations.dev ws: wss:; object-src 'none'"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+
+  <!-- CSP -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+        default-src 'self';
+        script-src 'self' https://accounts.google.com https://www.gstatic.com https://cdn.ckeditor.com https://apis.google.com https://cdn.jsdelivr.net https://ipapi.co https://pay.google.com https://cdn.paddle.com https://www.googletagmanager.com https://www.google-analytics.com https://www.google.com 'unsafe-inline' 'unsafe-eval';
+        frame-src https://accounts.google.com/gsi/ https://pay.google.com https://checkout.paddle.com https://*.paddle.com https://www.googletagmanager.com https://www.google.com;
+        connect-src 'self' https://accounts.google.com/gsi/ https://ipapi.co https://api-w7dmw4n5zq-du.a.run.app https://www.googleapis.com https://oauth2.googleapis.com https://generativelanguage.googleapis.com https://pay.google.com https://api.paddle.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com wss: ws:;
+        style-src 'self' 'unsafe-inline' https://cdn.ckeditor.com;
+        img-src 'self' data: https://*.paddle.com https://www.google-analytics.com;
+        object-src 'none';
+        "/>
+
   <meta http-equiv="Permissions-Policy" content="identity-credentials-get=()"/>
+
   <title>ThinkHelper 3.1</title>
   <link rel="icon" href="data:,"/>
+  <link rel="manifest" href="manifest.json"/>
 
-  <!-- Google Identity & Drive -->
+  <!-- Google reCAPTCHA Enterprise -->
+  <script src="https://www.google.com/recaptcha/enterprise.js?render=6LdrQpwrAAAAAEfS6GhTaZwnTY5MpC69IEeRNDIT"></script>
+
+  <!-- (옵션) 결제 스크립트 -->
+  <script async src="https://pay.google.com/gp/p/js/pay.js"></script>
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js" async></script>
+
+  <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js" async defer></script>
-  <meta name="google-signin-client_id" content="609565568467-cmagnrdngsojg5q62ljf5gi8ljk7moac.apps.googleusercontent.com"/>
-  <meta name="google-api-key" content="AIzaSyDaBLLoSo5zwFhl72L9R7VeQqa1eybwqKk"/>
 
-  <!-- Libraries -->
-  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js" async></script>
+  <!-- Editor & sanitize -->
+  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js" async></script>
 
-  <!-- STYLE -->
+  <!-- OAuth/Gemini API Key -->
+  <meta name="google-signin_client_id" content="609565568467-cmagnrdngsojg5q62ljf5gi8ljk7moac.apps.googleusercontent.com"/>
+  <meta name="google-api-key" content="AIzaSyDaBLLoSo5zwFhl72L9R7VeQqa1eybwqKk"/>
+
+  <!-- GA4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9PM41E1HFW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date()); gtag('config', 'G-9PM41E1HFW');
+  </script>
+
   <style>
-  :root {
-    --primary: #1976d2;
-    --primary-light: #e3f2fd;
-    --primary-hover: #bbdefb;
-    --bg: #f4f4f4;
-    --fg: #333;
-    --box: #fff;
-    --border: #ccc;
-    --text-light: #fff;
-    --sug-bg: #e3f2fd;
-    --sug-hover: #bbdefb;
-    --sug-text: #000;
-  }
-  body.dark {
-    --bg: #1e1e1e;
-    --fg: #e0e0e0;
-    --box: #2c2c2c;
-    --border: #555;
-    --sug-bg: #ffcc80;
-    --sug-hover: #ffb74d;
-    --sug-text: #000;
-    --primary-light: #4a90e2;
-    --primary-hover: #357abd;
-  }
-  body.dark #loginDisplay, body.dark #charCount, body.dark .btn, body.dark .suggestion-item,
-  body.dark .chatMsg, body.dark #consentBox, body.dark #settingsBox, body.dark #helpBox, body.dark footer {
-    color: #fff;
-  }
-  body.dark .chatMsg.ai { background: #444; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    height: 100vh; display: flex; flex-direction: column;
-    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
-    background: var(--bg); color: var(--fg); transition: background 0.3s, color 0.3s;
-  }
-  #loginGate { display: none; position: absolute; inset: 0; background: rgba(0,0,0,.82); z-index: 2000;
-    color: #fff; font-size: 1.1rem; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; padding: 1rem; }
-  #loginGate button { margin-top: 1rem; padding: .6rem 1.2rem; border: none; border-radius: 4px;
-    background: #4285f4; color: #fff; font-size: 1rem; cursor: pointer; }
-  header { display: flex; justify-content: space-between; align-items: center;
-    padding: .55rem .9rem; background: var(--primary); color: var(--text-light);
-    position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,.25); }
-  #logoWrap { display: flex; align-items: center; gap: .65rem; }
-  #logoWrap h1 { font-size: 1.1rem; font-weight: 600; }
-  #menuToggle { display: none; cursor: pointer; font-size: 1.35rem; line-height: 1; }
-  .toolbar { display: flex; align-items: center; gap: .4rem; }
-  .btn { padding: .32rem .7rem; border: none; border-radius: 4px; background: var(--box);
-    color: var(--primary); cursor: pointer; font-size: .86rem; transition: background .2s; }
-  .btn:hover { background: var(--primary-light); }
-  .btn.tiny { padding: .2rem .5rem; font-size: .8rem; }
-  select { padding: .32rem; border: none; border-radius: 4px; background: var(--box); color: var(--primary); font-size: .86rem; }
-  #loginDisplay { font-weight: bold; }
-  main { flex: 1; display: flex; min-height: 0; }
-  aside { width: 230px; background: var(--primary-light); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; overflow: auto; transition: left .3s; }
-  aside h3 { font-size: 1rem; font-weight: 600; padding: 1rem .9rem; border-bottom: 1px solid var(--border); }
-  #mobileActions { display: none; flex-direction: column; gap: .4rem; padding: .8rem; }
-  #mobileActions button, #mobileActions select { width: 100%; }
-  #docList, #chatList { list-style: none; font-size: .9rem; }
-  #docList li, #chatList li { display: flex; justify-content: space-between; align-items: center;
-    padding: .55rem .85rem; border-bottom: 1px dashed var(--border); cursor: pointer; }
-  #docList li:hover, #chatList li:hover { background: var(--primary-hover); }
-  .doc-del, .doc-rename, .chat-del { margin-left: .4rem; color: #888; cursor: pointer; }
-  .doc-del:hover, .chat-del:hover { color: #f44336; }
-  .doc-rename:hover { color: var(--primary); }
-  #emptyCTA { padding: 1.4rem .9rem; text-align: center; font-size: .88rem; color: #555; }
-  #newDocBtn { margin-top: .7rem; padding: .5rem 1rem; border: none; border-radius: 4px;
-    background: var(--primary); color: #fff; cursor: pointer; font-size: .88rem; }
-  #newDocBtn:hover { background: #1565c0; }
-  section { flex: 1; display: flex; flex-direction: column; padding: 1rem; position: relative;
-    background: var(--box); min-width: 0; transition: height .25s; }
-  section.collapsed { height: 66px !important; }
-  #editor { flex: 1; border: 1px solid var(--border); border-radius: 4px; padding: .9rem; overflow: auto;
-    background: inherit; color: inherit; }
-  #editor:empty::before { content: attr(data-placeholder); color: #aaa; font-style: italic; }
-  section.collapsed #editor { height: 0; padding: 0; border: none; overflow: hidden; }
-  .ck-editor__editable_inline { min-height: 60vh !important; }
-  #charCount { text-align: right; margin-top: .4rem; font-size: .82rem; color: var(--primary); }
-  #inlineSearch { display: flex; gap: .5rem; margin-top: 1rem; position: relative; }
-  #inlineSearch input { flex: 1; padding: .55rem; font-size: 1rem; border: 1px solid var(--border);
-    border-radius: 4px; background: inherit; color: inherit; }
-  #autocomplete { display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 25; list-style: none;
-    margin: .35rem 0 0; padding: 0; max-height: 160px; overflow: auto; border: 1px solid var(--border);
-    border-radius: 4px; background: var(--box); font-size: .9rem; }
-  #autocomplete li { padding: .45rem .55rem; border-bottom: 1px dashed var(--border); cursor: pointer; }
-  #autocomplete li:hover { background: var(--primary-light); }
-  #suggestions { display: none; position: absolute; z-index: 40; max-height: 220px; overflow: auto; min-width: 180px;
-    background: var(--sug-bg); border: 1px solid var(--border); border-radius: 6px; padding: .25rem 0;
-    box-shadow: 0 3px 8px rgba(0,0,0,.2); font-size: .9rem; }
-  .suggestion-item { padding: .4rem .8rem; border-bottom: 1px dashed var(--border); cursor: pointer; color: var(--sug-text); }
-  .suggestion-item:last-child { border-bottom: none; }
-  .suggestion-item:hover, .suggestion-item.selected { background: var(--sug-hover); }
-  .suggestion-item.selected { outline: 2px solid var(--primary); }
-  #previewPopup { display: none; position: absolute; z-index: 50; background: var(--box); border: 1px solid var(--border);
-    border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,.2); padding: .6rem; max-width: 280px; }
-  #previewPopup h4 { margin-bottom: .5rem; font-size: 1rem; }
-  #chatPanel { display: none; position: fixed; bottom: 1.2rem; right: 1.2rem; width: 360px; height: 460px;
-    background: var(--box); border: 1px solid var(--border); border-radius: 6px;
-    box-shadow: 0 3px 8px rgba(0,0,0,.2); flex-direction: column; overflow: hidden; z-index: 300; }
-  #chatHeader { display: flex; justify-content: space-between; align-items: center;
-    padding: .55rem; background: var(--primary); color: var(--text-light); }
-  #chatLog { flex: 1; overflow-y: auto; padding: .6rem; font-size: .85rem; }
-  .chatMsg { margin: .45rem 0; padding: .5rem .75rem; border-radius: 6px; max-width: 85%; word-break: break-word; }
-  .chatMsg.user { align-self: flex-end; background: var(--primary-light); }
-  .chatMsg.ai { align-self: flex-start; background: #eee; }
-  body.dark .chatMsg.ai { background: #444; }
-  #chatInput { border: none; border-top: 1px solid var(--border); padding: .6rem; width: 100%; background: inherit; color: inherit; outline: none; }
-  #consent, #settingsModal, #helpModal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 500; align-items: center; justify-content: center; }
-  #consentBox, #settingsBox, #helpBox { background: var(--box); padding: 1.6rem; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
-  #consentBox { text-align: center; max-width: 420px; margin: 15vh auto; }
-  #settingsBox { max-width: 420px; margin: 15vh auto; text-align: left; }
-  #helpBox { max-width: 600px; max-height: 80vh; overflow: auto; margin: 15vh auto; text-align: left; }
-  #settingsBox h3, #helpBox h3 { margin-bottom: 1rem; font-size: 1.2rem; }
-  #settingsBox label { display: block; margin: 0.8rem 0; font-size: 0.9rem; }
-  #settingsBox input[type="checkbox"] { margin-right: 0.5rem; }
-  #settingsBox button, #helpBox button { margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-  footer { text-align: center; padding: .6rem; font-size: .8rem; color: #666; border-top: 1px solid var(--border); }
-  @media (max-width: 430px) {
-    #menuToggle { display: block; }
-    main { flex-direction: column; }
-    aside { position: fixed; left: -240px; top: 48px; height: calc(100% - 48px); z-index: 150; width: 230px; }
-    body.menu-open aside { left: 0; }
-    #mobileActions { display: flex; }
-    section { padding: .8rem; }
-    #inlineSearch { flex-direction: column; }
-    #chatPanel { width: 92%; right: 4%; bottom: 4%; height: 54%; }
-    .desktop-only { display: none; }
-  }
+    :root{
+      --primary:#1976d2; --primary-light:#e3f2fd; --primary-hover:#bbdefb;
+      --bg:#f6f7fb; --fg:#262b33; --box:#fff; --border:#ccd3e0; --text-light:#fff;
+      --sug-bg:#ffffff; --sug-hover:#eef4ff; --sug-text:#0f172a;
+      --pill-bg:#ffe7e7; --pill-border:#f44336; --pill-dot:#b71c1c;
+    }
+    body.dark{
+      --bg:#0f172a; --fg:#e2e8f0; --box:#0b1220; --border:#2a3550;
+      --sug-bg:#0b1220; --sug-hover:#111a2e; --sug-text:#e2e8f0;
+      --primary-light:#90CAF9; --primary-hover:#64B5F6;
+      --pill-bg:#2a1111; --pill-border:#ef9a9a; --pill-dot:#ffb4b4;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;display:flex;flex-direction:column;font-family:-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif;background:var(--bg);color:var(--fg);transition:background .3s,color .3s}
+
+    header{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--primary);color:var(--text-light);position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(255,255,255,.2)}
+    #logoWrap{display:flex;align-items:center;gap:.6rem}
+    #logoWrap h1{font-size:1.05rem;font-weight:700}
+    .toolbar{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+    .btn{padding:.34rem .72rem;border:none;border-radius:10px;background:var(--box);color:var(--primary);cursor:pointer;font-size:.9rem;transition:background .2s}
+    .btn:hover{background:var(--primary-light)}
+    .btn.tiny{padding:.24rem .5rem;font-size:.84rem}
+    select{padding:.34rem;border:none;border-radius:10px;background:var(--box);color:var(--primary);font-size:.9rem}
+
+    /* 데스크탑: 햄버거 숨김 / 모바일(≤860px): 햄버거 표시 */
+    #sidebarToggle{display:none}
+    @media (max-width:860px){
+      #sidebarToggle{display:inline-flex}
+      .toolbar> :not(#authBtn):not(#saveBtn):not(#helpBtn):not(#menuBtn):not(#recaptchaBtn){display:none !important}
+      #menuBtn{display:inline-flex}
+    }
+    #menuBtn{display:none}
+
+    .badge{display:inline-block;padding:.16rem .5rem;border-radius:999px;font-size:.78rem;background:rgba(255,255,255,.25);color:#fff}
+    .badge.off{background:#d32f2f}
+
+    main{flex:1;display:flex;min-height:0}
+    aside{width:260px;background:var(--primary-light);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:auto}
+    body.dark aside{background:#0f2334}
+    @media (max-width:860px){
+      aside{display:none}
+      aside.open{display:flex;position:fixed;top:54px;bottom:0;left:0;z-index:250;width:80vw;max-width:320px}
+    }
+    aside h3{font-size:1rem;font-weight:700;padding:1rem .9rem;border-bottom:1px solid var(--border)}
+    #docList,#chatList{list-style:none;font-size:.92rem}
+    #docList li,#chatList li{display:flex;justify-content:space-between;align-items:center;padding:.6rem .85rem;border-bottom:1px dashed var(--border);cursor:pointer}
+    #docList li small{opacity:.7}
+    #docList li:hover,#chatList li:hover{background:var(--primary-hover)}
+    #emptyCTA{padding:1rem .9rem;text-align:center;font-size:.88rem;color:#555}
+    #newDocBtn{margin:.7rem; padding:.6rem 1rem;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer;font-size:.92rem}
+    #newDocBtn:hover{background:#1565c0}
+
+    section{flex:1;display:flex;flex-direction:column;padding:1rem;background:var(--box);min-width:0;position:relative}
+    #editor{flex:1;border:1px solid var(--border);border-radius:12px;padding:1rem;overflow:auto;background:inherit;color:inherit}
+    #editor:empty::before{content:attr(data-placeholder);color:#9aa3b2;font-style:italic}
+    .ck-editor__editable_inline{min-height:58vh!important}
+    .ck-content{color:inherit;background:inherit;font-size:1.02rem;line-height:1.7}
+    .ck-content a{color:var(--primary-hover)} body.dark .ck-content a{color:#90caf9}
+    #charCount{display:none}
+
+    /* 에디터 Quick Actions (복사만) */
+    #quickActions{display:flex;gap:.5rem;margin:.6rem 0 .2rem 0}
+    #quickActions .btn{padding:.28rem .6rem;font-size:.85rem}
+
+    #inlineSearch{display:flex;gap:.5rem;margin-top:1rem;position:relative}
+    #inlineSearch input{flex:1;padding:.7rem 1rem;font-size:1rem;border:1px solid var(--border);border-radius:12px;background:inherit;color:inherit}
+    #inlineSearch button{border-radius:12px}
+    #inlineSearch input::placeholder{color:#8a93a3} body.dark #inlineSearch input::placeholder{color:#b8c1d4}
+
+    /* 검색 자동 제안 */
+    #searchSuggest{
+      position:absolute; top:100%; left:0; right:0; margin-top:6px;
+      background:var(--sug-bg); color:var(--sug-text); border:1px solid var(--border);
+      border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,.22);
+      display:none; z-index:1200; max-height:280px; overflow:auto;
+    }
+    .search-sug-item{padding:.6rem .9rem;border-bottom:1px dashed var(--border);cursor:pointer;display:flex;gap:.5rem;align-items:center}
+    .search-sug-item:last-child{border-bottom:none}
+    .search-sug-item:hover,.search-sug-item.selected{background:var(--sug-hover)}
+    .search-sug-item .icon{opacity:.8}
+    .search-sug-item .text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* 검색 직행 제안 배너 */
+    #searchJump{
+      margin-top:8px; display:none; align-items:center; gap:.5rem;
+      background:var(--sug-bg); color:var(--sug-text);
+      border:1px solid var(--border); border-radius:12px; padding:8px 10px;
+      box-shadow:0 8px 20px rgba(0,0,0,.12);
+    }
+    #searchJump .label{font-weight:700}
+    #searchJump .meta{opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
+    @media (max-width:860px){ #searchJump .meta{max-width:55%} }
+
+    /* 입력 제안(에디터 칩) */
+    #suggestions{
+      position:fixed;z-index:99999;max-height:240px;overflow:auto;min-width:260px;
+      background:var(--sug-bg);border:1px solid var(--border);border-radius:12px;padding:.25rem 0;
+      box-shadow:0 12px 28px rgba(0,0,0,.22);font-size:.96rem;display:none;-webkit-overflow-scrolling:touch;
+    }
+    .suggestion-item{padding:.55rem .9rem;border-bottom:1px dashed var(--border);cursor:pointer;color:var(--sug-text);white-space:nowrap}
+    .suggestion-item:last-child{border-bottom:none}
+    .suggestion-item:hover,.suggestion-item.selected{background:var(--sug-hover)}
+    .suggestion-item.selected{outline:2px solid var(--primary)}
+
+    /* PII pill */
+    .ck-content .pii-pill{
+      background:var(--pill-bg); border:1px dashed var(--pill-border);
+      color:transparent; border-radius:999px; padding:0 .5em; user-select:none;
+      box-decoration-break:clone;
+    }
+    .ck-content .pii-pill::after{content:"••••"; color:var(--pill-dot); letter-spacing:.12em;}
+
+    /* 저장 메뉴 */
+    #saveMenu{position:fixed;display:none;z-index:1600;min-width:240px;background:var(--box);color:var(--fg);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.22)}
+    #saveMenu button{display:block;width:100%;border:0;background:transparent;color:#0d1b2a;font-weight:700;font-size:.95rem;padding:.75rem 1rem;text-align:left;letter-spacing:.01em;border-bottom:1px dashed var(--border)}
+    #saveMenu button:last-child{border-bottom:none}
+    body.dark #saveMenu{background:#0b1220;border-color:#2a3550}
+    body.dark #saveMenu button{color:#eaeef9}
+    #saveMenu button:hover,#saveMenu button:focus{background:var(--primary);color:#fff}
+    #saveMenu button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+
+    /* 공통 모달 */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:2000}
+    .modal .card{width:min(92vw,760px);max-height:85vh;overflow:auto;background:var(--box);color:var(--fg);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 48px rgba(0,0,0,.35)}
+    .modal .card header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+    .modal .card .content{padding:14px 16px}
+    .modal .close{border:none;background:transparent;font-size:20px;cursor:pointer;color:inherit}
+
+    /* 드로어(모바일) */
+    #drawer{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:flex-end;z-index:1600}
+    #drawer .sheet{width:min(92vw,380px);height:100%;background:var(--box);color:var(--fg);border-left:1px solid var(--border);padding:1rem;display:flex;flex-direction:column;gap:.8rem}
+    #drawer .row{display:flex;gap:.5rem;align-items:center}
+    #drawer .row select, #drawer .row button, #drawer .row input{flex:1}
+    #helpInlineMobile{font-size:.92rem;line-height:1.6;border-top:1px solid var(--border);padding-top:.6rem}
+
+    /* 숨길 요소들 */
+    .grecaptcha-badge,
+    .site-error,
+    .error,
+    small[style*="color:red"],
+    .ck.ck-notification__message{display:none !important;}
+    footer#legal{font-size:.8rem;opacity:.7;padding:.6rem 1rem;background:transparent;color:inherit}
+
+    /* Gemini Chat */
+    #chatPanel{
+      position:fixed; right:16px; bottom:16px; width:420px; height:520px;
+      display:none; flex-direction:column;
+      background:var(--box); color:var(--fg); border:1px solid var(--border);
+      border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,.22); z-index:1800;
+    }
+    #chatPanel.fullscreen{ left:0; right:0; top:54px; bottom:0; width:auto; height:auto; border-radius:0; }
+    #chatHeader{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); background:var(--primary-light)}
+    #chatHeader .right{display:flex; gap:.4rem}
+    #chatLog{flex:1; overflow:auto; padding:10px; display:flex; flex-direction:column; gap:6px}
+    .chatMsg{max-width:80%; padding:8px 10px; border-radius:12px; line-height:1.45}
+    .chatMsg.user{align-self:flex-end; background:var(--primary-light)}
+    .chatMsg.ai{align-self:flex-start; background:#eceff1}
+    #chatInput{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin:10px}
+
+    @media (max-width:860px){
+      #chatPanel{ left:8px; right:8px; bottom:10px; width:auto; height:65vh; }
+    }
   </style>
 </head>
 <body>
-  <!-- Login Gate -->
-  <div id="loginGate" class="flex">
-    <h2 data-i18n="loginGate"></h2>
-    <p data-i18n="loginMessage"></p>
-    <button id="loginBtn" aria-label="Google Login" data-i18n="loginButton"></button>
-  </div>
-
-  <!-- Header -->
   <header>
     <div id="logoWrap">
-      <span id="menuToggle" aria-label="Menu Toggle">☰</span>
-      <h1>ThinkHelper 3.1</h1>
+      <button class="btn tiny" id="sidebarToggle" title="사이드바" aria-label="사이드바">☰</button>
+      <h1 id="appTitle">ThinkHelper 3.1</h1>
     </div>
     <div class="toolbar">
-      <span id="loginDisplay" style="color:#fff;margin-right:.4rem"></span>
-      <button class="btn" id="authBtn" aria-label="Google Login" data-i18n="loginButton"></button>
-      <select id="languageSelect" aria-label="Language Selection">
-        <option value="en">English</option>
+      <span id="loginDisplay" style="color:#fff;margin-right:.2rem"></span>
+      <span id="consentBadge" class="badge" title="개인정보 동의 상태"></span>
+      <button class="btn" id="authBtn">Google 로그인</button>
+
+      <!-- 데스크탑 언어/모드 -->
+      <select id="languageSelect" aria-label="Language">
         <option value="ko">한국어</option>
+        <option value="en">English</option>
         <option value="ja">日本語</option>
       </select>
-      <select id="modeSelect" class="desktop-only" aria-label="Mode Selection">
+      <select id="modeSelect" aria-label="Mode">
         <option value="basic">🛠 Basic</option>
         <option value="journalist">📰 Journalist</option>
         <option value="research">📑 Research</option>
         <option value="law">⚖️ Legal</option>
         <option value="dev">💻 Developer</option>
       </select>
-      <button class="btn desktop-only" id="foldBtn" aria-label="Fold/Unfold" data-i18n="foldBtn">📄 Fold/Unfold</button>
-      <button class="btn" id="saveBtn" aria-label="Save" data-i18n="save">💾 Save</button>
-      <button class="btn" id="exportBtn" aria-label="Export to Drive" data-i18n="export">📂 Export to Drive</button>
-      <button class="btn desktop-only" id="chatBtn" aria-label="Chat" data-i18n="chatBtn">💬 Chat</button>
-      <button class="btn desktop-only" id="themeBtn" aria-label="Theme" data-i18n="themeBtn">🌙 Theme</button>
-      <button class="btn desktop-only" id="settingsBtn" aria-label="Settings" data-i18n="settingsTitle">⚙️ Settings</button>
-      <button class="btn desktop-only" id="helpBtn" aria-label="Help" data-i18n="helpTitle">❓ Help</button>
+
+      <button class="btn" id="saveBtn">💾 저장</button>
+      <button class="btn" id="chatBtn">💬 채팅</button>
+      <button class="btn" id="themeBtn">🌙 테마</button>
+      <button class="btn" id="settingsBtn">⚙️ 설정</button>
+      <button class="btn" id="helpBtn">❓ 도움말</button>
+      <button class="btn" id="shareNaverBtn">네이버 블로그</button>
+      <button class="btn" id="shareTwitterBtn">트위터</button>
+      <button class="btn g-recaptcha" id="recaptchaBtn"
+        data-sitekey="6LdrQpwrAAAAAEfS6GhTaZwnTY5MpC69IEeRNDIT"
+        data-callback="onSubmit"
+        data-action="submit">reCAPTCHA</button>
+
+      <!-- 모바일 햄버거 -->
+      <button class="btn" id="menuBtn" aria-label="메뉴">☰</button>
+    </div>
+
+    <div id="saveMenu" role="menu" aria-label="Save options">
+      <button id="saveMenuPdf">🖨️ <span>PDF로 저장</span></button>
+      <button id="saveMenuDevice">💾 <span>기기에 저장하기(HTML)</span></button>
+      <button id="exportBtn">📂 <span>Drive로 내보내기(Google Docs)</span></button>
     </div>
   </header>
 
-  <!-- Main -->
   <main>
-    <!-- Sidebar -->
-    <aside>
-      <div id="mobileActions" class="mobile-only">
-        <select id="mLanguageSelect" aria-label="Language Selection">
-          <option value="en">English</option>
+    <aside id="sidebar">
+      <h3 id="docListTitle">문서 목록</h3>
+      <div id="emptyCTA" style="display:none">
+        <span id="emptyText">아직 저장된 문서가 없습니다.</span><br/>
+        <button id="newDocCTA" class="btn">+ 새 문서</button>
+      </div>
+      <button class="btn" id="newDocBtn">➕ 새 문서</button>
+      <ul id="docList"></ul>
+
+      <h3 id="chatListTitle">채팅 기록</h3>
+      <ul id="chatList"></ul>
+    </aside>
+
+    <section id="wrap">
+      <!-- 에디터 Quick Actions (복사만) -->
+      <div id="quickActions">
+        <button class="btn tiny" id="copyBtn">📋 Copy (Ctrl/Cmd+C)</button>
+      </div>
+
+      <div id="editor" data-placeholder="여기에 글을 입력하세요..."></div>
+      <div id="charCount">0 자</div>
+
+      <div id="inlineSearch">
+        <input id="searchInput" placeholder="검색 (/ 또는 Ctrl+K)" autocomplete="off"/>
+        <button class="btn" id="searchBtn">🔍 <span id="searchBtnText">검색</span></button>
+        <div id="searchSuggest"></div>
+        <!-- 검색 직행 제안 배너 -->
+        <div id="searchJump" role="region" aria-live="polite"></div>
+      </div>
+
+      <!-- 입력 중 의도 제안 칩 -->
+      <div id="suggestions"></div>
+    </section>
+  </main>
+
+  <!-- 하단 고지문 -->
+  <footer id="legal">
+    This site is protected by reCAPTCHA and the Google
+    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+    <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
+  </footer>
+
+  <!-- 모바일/아이패드 드로어 -->
+  <div id="drawer" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-label="Quick Menu">
+      <div class="row">
+        <label style="min-width:88px" id="labelLang">Language</label>
+        <select id="languageSelectMobile">
           <option value="ko">한국어</option>
+          <option value="en">English</option>
           <option value="ja">日本語</option>
         </select>
-        <select id="mModeSelect" aria-label="Mode Selection">
+      </div>
+      <div class="row">
+        <label style="min-width:88px" id="labelMode">Mode</label>
+        <select id="modeSelectMobile">
           <option value="basic">🛠 Basic</option>
           <option value="journalist">📰 Journalist</option>
           <option value="research">📑 Research</option>
           <option value="law">⚖️ Legal</option>
           <option value="dev">💻 Developer</option>
         </select>
-        <button class="btn" id="mChatBtn" aria-label="Chat" data-i18n="chatBtn">💬 Chat</button>
-        <button class="btn" id="mThemeBtn" aria-label="Theme" data-i18n="themeBtn">🌙 Theme</button>
-        <button class="btn" id="mSettingsBtn" aria-label="Settings" data-i18n="settingsTitle">⚙️ Settings</button>
-        <button class="btn" id="mHelpBtn" aria-label="Help" data-i18n="helpTitle">❓ Help</button>
       </div>
-      <h3 data-i18n="docListTitle">Documents</h3>
-      <div id="emptyCTA" style="display:none" data-i18n="emptyCTA"></div>
-      <ul id="docList"></ul>
-      <h3 data-i18n="chatListTitle">Chat History</h3>
-      <ul id="chatList"></ul>
-    </aside>
-
-    <!-- Editor Area -->
-    <section id="wrap">
-      <div id="editor" data-placeholder="Type here..."></div>
-      <div id="charCount">0 characters</div>
-      <div id="inlineSearch">
-        <input id="searchInput" placeholder="Search (/ or Ctrl+K)" autocomplete="off" aria-label="Search" data-i18n-placeholder="searchPlaceholder"/>
-        <button class="btn" id="searchBtn" aria-label="Search" data-i18n="searchBtn">🔍 Search</button>
+      <div class="row">
+        <button class="btn" id="themeBtnMobile">🌙 테마</button>
+        <button class="btn" id="settingsBtnMobile">⚙️ 설정</button>
       </div>
-      <ul id="autocomplete"></ul>
-      <div id="suggestions"></div>
-      <div id="previewPopup"></div>
-    </section>
-  </main>
+      <div class="row">
+        <button class="btn" id="shareNaverBtnMobile">네이버 블로그</button>
+        <button class="btn" id="shareTwitterBtnMobile">트위터</button>
+      </div>
 
-  <!-- Chat -->
-  <div id="chatPanel" role="dialog" aria-label="Chat Panel">
-    <div id="chatHeader" data-i18n="chatHeader">💬 Gemini Chat <button class="btn" id="chatClose" aria-label="Close Chat" data-i18n="closeBtn">✖︎ Close</button></div>
+      <!-- 모바일 도움말 인라인 -->
+      <div id="helpInlineMobile"></div>
+
+      <button class="btn" id="drawerClose" style="margin-top:auto">닫기</button>
+    </div>
+  </div>
+
+  <!-- reCAPTCHA 데모 폼(요청 코드 유지) -->
+  <form id="demo-form" action="#" method="post" style="display:none"></form>
+
+  <!-- 동의 모달 -->
+  <div id="consent" class="modal" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+    <div class="card">
+      <header>
+        <h3 id="consentTitle">개인정보 수집·이용 안내</h3>
+        <button class="close" id="consentClose" aria-label="닫기">✕</button>
+      </header>
+      <div class="content">
+        <p id="consentBody" style="line-height:1.7;margin:.4rem 0">
+          사용자는 로그인 없이도 본 서비스를 이용할 수 있습니다. 다만,
+          <strong>로그인 시 및 문서를 작성할 때</strong> 사용자가 작성하는 내용 중 일부는 품질 개선과 기능 제공을 위해 수집될 수 있다는 것에 동의합니다.
+          동의를 거부하더라도 서비스는 이용 가능하지만,
+          <strong>이 경우 추천 에디터 기능은 비활성화</strong>됩니다.
+        </p>
+        <p style="margin:.4rem 0">
+          <a id="privacyLink" href="https://docs.google.com/document/d/1kmFzmp3ddJOKOp1TPsvsNzAuBKt6M0Vm0N_G5BIOZEE/edit?usp=sharing" target="_blank" rel="noopener">개인정보 처리방침 자세히 보기</a> ·
+          <a id="tosLink" href="https://docs.google.com/document/d/1TLZ2m52s1mAd8BPzXDBQuXF6QZ_hLDZOyX6Y8TKALnE/edit?usp=sharing" target="_blank" rel="noopener">서비스 이용약관 자세히 보기</a>
+        </p>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:10px">
+          <button class="btn" id="declineBtn" style="background:#eee">거부</button>
+          <button class="btn" id="agreeBtn" style="background:#1976d2;color:#fff">동의</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 도움말 모달(데스크탑용) -->
+  <div id="helpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="card">
+      <header>
+        <h3 id="helpTitle">도움말</h3>
+        <button class="close" data-close="#helpModal" aria-label="닫기">✕</button>
+      </header>
+      <div class="content" id="helpContent"></div>
+    </div>
+  </div>
+
+  <!-- 설정 모달 -->
+  <div id="settingsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="card">
+      <header>
+        <h3 id="settingsTitle">설정</h3>
+        <button class="close" data-close="#settingsModal" aria-label="닫기">✕</button>
+      </header>
+      <div class="content">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:.4rem 0">
+          <label for="toggleSuggestions" id="labelSuggest">추천 에디터 사용</label>
+          <input type="checkbox" id="toggleSuggestions"/>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:.4rem 0">
+          <label for="toggleInstant" id="labelInstant">모바일 즉시 제안(저사양 비활성 권장)</label>
+          <input type="checkbox" id="toggleInstant"/>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:.4rem 0">
+          <label for="togglePdfMask" id="labelPdfMask">PDF 저장 시 마스킹 적용</label>
+          <input type="checkbox" id="togglePdfMask"/>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:.4rem 0">
+          <label for="togglePiiHighlight" id="labelPiiHighlight">에디터에서 PII 하이라이트 표시</label>
+          <input type="checkbox" id="togglePiiHighlight"/>
+        </div>
+        <hr style="margin:10px 0; border:none; border-top:1px solid var(--border)"/>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn" id="reopenConsent">개인정보 동의 다시 설정</button>
+          <button class="btn" id="toggleThemeInSettings">테마 토글</button>
+        </div>
+        <p style="margin-top:10px;font-size:.92rem;color:#555">
+          • 복사는 상단 <b>Copy</b> 버튼, <b>붙여넣기</b>는 <code>Ctrl/⌘+V</code>.<br/>
+          • <b>되돌리기/다시하기</b>: <code>Ctrl/⌘+Z</code> / <code>Ctrl/⌘+Shift+Z</code> 또는 <code>Ctrl/⌘+Y</code>.<br/>
+          • PDF 저장 시 PII 마스킹은 위 토글로 설정합니다.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gemini Chat -->
+  <div id="chatPanel" role="dialog" aria-label="Gemini Chat">
+    <div id="chatHeader">
+      <span id="chatTitle">💬 Gemini Chat</span>
+      <div class="right">
+        <button class="btn tiny" id="chatFullscreenToggle">⤢ Full</button>
+        <button class="btn tiny" id="chatClose">Close</button>
+      </div>
+    </div>
     <div id="chatLog"></div>
-    <input id="chatInput" placeholder="Send with Enter" aria-label="Chat Input" data-i18n-placeholder="chatPlaceholder"/>
+    <input id="chatInput" placeholder="Enter로 전송" aria-label="Chat Input"/>
   </div>
-
-  <!-- Consent Modal -->
-  <div id="consent" aria-label="Consent Modal">
-    <div id="consentBox">
-      <h3 data-i18n="consentTitle">Consent to Data Collection</h3>
-      <p data-i18n="consentMessage">By using this service, you consent to the collection and use of personal information (email, IP address, usage logs). Do not input sensitive information.</p>
-      <button class="btn" id="agreeBtn" aria-label="Agree" data-i18n="agreeBtn">Agree</button>
-    </div>
-  </div>
-
-  <!-- Settings Modal -->
-  <div id="settingsModal" aria-label="Settings Modal">
-    <div id="settingsBox">
-      <h3 data-i18n="settingsTitle">Settings</h3>
-      <label><input type="checkbox" id="enableSuggestions" checked> <span data-i18n="enableSuggestions">Enable personalized suggestions</span></label>
-      <label><input type="checkbox" id="enableInstant" checked> <span data-i18n="enableInstant">Enable instant suggestions (mobile single word)</span></label>
-      <button id="settingsCloseBtn" data-i18n="closeBtn">Close</button>
-    </div>
-  </div>
-
-  <!-- Help Modal -->
-  <div id="helpModal" aria-label="Help Modal">
-    <div id="helpBox">
-      <h3 data-i18n="helpTitle">ThinkHelper Help</h3>
-      <section id="termsOfService"><h4 data-i18n="termsTitle">Terms of Service</h4></section>
-      <section id="privacyPolicy"><h4 data-i18n="privacyTitle">Privacy Policy</h4></section>
-      <section id="usageGuide"><h4 data-i18n="usageTitle">Usage Guide</h4></section>
-      <button id="helpCloseBtn" data-i18n="closeBtn">Close</button>
-    </div>
-  </div>
-
-  <footer data-i18n="footerWarning">
-    ⚠️ AI output may contain errors. <strong>Always verify important content.</strong><br/>
-    ⚠️ Do not input or save sensitive information.
-  </footer>
 
   <script>
-  /* ───────── Global Variables ───────── */
-  let mode = localStorage.getItem('mode') || 'basic';
-  let cachedGeoLanguage = localStorage.getItem('cachedGeoLanguage') || null;
-  let cachedGeoWords = JSON.parse(localStorage.getItem('cachedGeoWords') || '{}');
-  let isLoggedIn = false;
-  let startTime = 0;
-  let preferredLanguage = localStorage.getItem('preferredLanguage') || null;
-  let offlineAlertShown = localStorage.getItem('offlineAlertShown') === 'true' || false;
-  let topicPromptShown = localStorage.getItem('topicPromptShown') === 'true';
-  const API = 'https://api-w7dmw4n5zq-du.a.run.app/api';
-  let selectedIndex = -1;
-
-  /* ───────── Language Labels ───────── */
-  const languageLabels = {
-    en: {
-      newDoc: 'New Document',
-      save: 'Save',
-      export: 'Export to Drive',
-      emptyCTA: 'No documents saved yet.<br/><button id="newDocBtn" aria-label="New Document">+ New Document</button>',
-      loginGate: 'Login Required',
-      loginMessage: 'Please log in to use save or export features.',
-      loginButton: 'Google Login',
-      logout: 'Logout',
-      settingsTitle: 'Settings',
-      settingsClose: 'Close',
-      enableSuggestions: 'Enable personalized suggestions',
-      enableInstant: 'Enable instant suggestions (mobile single word input)',
-      searchPlaceholder: 'Search (/ or Ctrl+K)',
-      searchBtn: '🔍 Search',
-      foldBtn: '📄 Fold/Unfold',
-      chatBtn: '💬 Chat',
-      chatHeader: '💬 Gemini Chat',
-      chatPlaceholder: 'Send with Enter',
-      themeBtn: '🌙 Theme',
-      helpTitle: '❓ Help',
-      closeBtn: 'Close',
-      agreeBtn: 'Agree',
-      consentTitle: 'Consent to Data Collection',
-      consentMessage: 'By using this service, you consent to the collection and use of personal information (email, IP address, usage logs). Do not input sensitive information.',
-      docListTitle: 'Documents',
-      chatListTitle: 'Chat History',
-      termsTitle: 'Terms of Service',
-      privacyTitle: 'Privacy Policy',
-      usageTitle: 'Usage Guide',
-      footerWarning: '⚠️ AI output may contain errors. <strong>Always verify important content.</strong><br/>⚠️ Do not input or save sensitive information.',
-      helpContent: {
-        termsOfService: ['1. This service is an AI-powered thought organization tool.', '2. Users are responsible for all content used with the service.', '3. The service may change without notice.'],
-        privacyPolicy: ['1. Collected items: Email, IP address, usage logs.', '2. Purpose of use: Service provision and improvement, location-based recommendations.', '3. Retention period: Deleted upon user request.', '4. Third-party sharing: Not provided.'],
-        usageGuide: ['1. Enter text in the editor: AI suggestions appear automatically (if enabled).', '2. Save documents with the save button (login required).', '3. Chat with AI using the chat feature.', '4. Insert web content via search.', '5. Switch to dark mode with the theme toggle.', '6. Select modes for research, journalism, legal documents, or development support.', '7. Rename titles with the ✏️ button in the document list.', '8. Change the recommendation language via the header language selection.']
-      },
-      offlineAlert: 'Please check your internet connection. Switching to local mode.',
-      saveSuccess: '✅ Saved to Google Drive',
-      saveLocal: 'Google Drive save failed. Saved locally as "%s"',
-      exportSuccess: '✅ Saved to Google Drive. Open in Google Docs to view.',
-      exportLocal: 'Google Drive export failed. Saved locally as "%s"',
-      titlePrompt: 'Enter document title:',
-      renamePrompt: 'Enter new title:',
-      reviewPrompt: 'Would you like to review the document?',
-      noResponse: 'Could not generate a response.',
-      searchConfirm: 'Search for',
-      searchGoogle: 'on Google?',
-      noResults: 'No search results',
-      openBtn: 'Open',
-      insertBtn: 'Insert',
-      editorPlaceholder: 'Type here...',
-      charCount: 'characters',
-      modeChange: 'Mode changed',
-      journalistPrompt: 'Provides suggestions for writing news articles.',
-      researchPrompt: 'Provides suggestions for research papers.',
-      lawPrompt: 'Provides suggestions for drafting legal documents.',
-      devPrompt: 'Provides code snippet and debugging suggestions.',
-      basicPrompt: 'Provides general writing suggestions.'
-    },
-    ko: {
-      newDoc: '새 문서 만들기',
-      save: '저장',
-      export: 'Drive로 내보내기',
-      emptyCTA: '아직 저장된 문서가 없습니다.<br/><button id="newDocBtn" aria-label="새 문서 만들기">+ 새 문서 만들기</button>',
-      loginGate: '로그인이 필요합니다',
-      loginMessage: '저장 또는 내보내기 기능을 사용하려면 로그인하세요.',
-      loginButton: 'Google 로그인',
-      logout: '로그아웃',
-      settingsTitle: '설정',
-      settingsClose: '닫기',
-      enableSuggestions: '맞춤 추천 활성화',
-      enableInstant: '즉시 추천 활성화 (모바일 단일 단어 입력)',
-      searchPlaceholder: '검색 (/ 또는 Ctrl+K)',
-      searchBtn: '🔍 검색',
-      foldBtn: '📄 접기/펼치기',
-      chatBtn: '💬 채팅',
-      chatHeader: '💬 Gemini 채팅',
-      chatPlaceholder: 'Enter로 전송',
-      themeBtn: '🌙 테마',
-      helpTitle: '❓ 도움말',
-      closeBtn: '닫기',
-      agreeBtn: '확인',
-      consentTitle: '개인정보 수집·이용 동의',
-      consentMessage: '본 서비스를 이용하면 개인정보(이메일, IP 주소, 사용 로그) 수집·이용에 동의한 것으로 간주됩니다.<br/>민감정보는 입력하지 마세요.',
-      docListTitle: '문서 목록',
-      chatListTitle: '채팅 기록',
-      termsTitle: '이용약관',
-      privacyTitle: '개인정보처리방침',
-      usageTitle: '이용법',
-      footerWarning: '⚠️ AI 출력은 오류가 있을 수 있습니다. <strong>중요한 내용은 반드시 검증하세요.</strong><br/>⚠️ 민감정보는 입력·저장하지 마세요.',
-      helpContent: {
-        termsOfService: ['1. 본 서비스는 AI를 이용한 생각 정리 도구입니다.', '2. 사용자는 서비스 이용 시 모든 콘텐츠에 대한 책임을 집니다.', '3. 서비스는 예고 없이 변경될 수 있습니다.'],
-        privacyPolicy: ['1. 수집 항목: 이메일, IP 주소, 사용 로그.', '2. 이용 목적: 서비스 제공 및 개선, 지역 기반 추천 제공.', '3. 보유기간: 사용자가 요청 시 삭제.', '4. 제3자 제공: 제공하지 않습니다.'],
-        usageGuide: ['1. 에디터에 텍스트 입력: AI 제안이 자동으로 나타납니다 (활성화 시).', '2. 저장 버튼으로 문서 저장 (로그인 필요).', '3. 채팅 기능으로 AI와 대화.', '4. 검색으로 웹 콘텐츠 삽입.', '5. 테마 전환으로 다크모드 사용.', '6. 모드 선택으로 리서치, 기사, 법률 문서, 개발 작업 지원.', '7. 문서 목록에서 ✏️ 버튼으로 제목 변경 가능.', '8. 헤더에서 언어 선택으로 추천 언어 변경 가능.']
-      },
-      offlineAlert: '인터넷 연결을 확인하세요. 로컬 모드로 전환합니다.',
-      saveSuccess: '✅ Google Drive에 저장되었습니다',
-      saveLocal: 'Google Drive 저장 실패. 로컬에 "%s"로 저장되었습니다',
-      exportSuccess: '✅ Google Drive에 저장되었습니다. Google Docs에서 확인하세요',
-      exportLocal: 'Google Drive 내보내기 실패. 로컬에 "%s"로 저장되었습니다',
-      titlePrompt: '문서 제목을 입력하세요:',
-      renamePrompt: '새 제목을 입력하세요:',
-      reviewPrompt: '문서를 검토해 드릴까요?',
-      noResponse: '답변을 생성할 수 없습니다.',
-      searchConfirm: '다음으로 검색:',
-      searchGoogle: 'Google에서 검색하시겠습니까?',
-      noResults: '검색 결과 없음',
-      openBtn: '이동',
-      insertBtn: '삽입',
-      editorPlaceholder: '여기에 글을 입력하세요...',
-      charCount: '자',
-      modeChange: '모드 변경',
-      journalistPrompt: '기사 작성에 도움이 되는 제안을 제공합니다.',
-      researchPrompt: '리서치 논문 작성에 적합한 제안을 제공합니다.',
-      lawPrompt: '법률 문서 작성에 필요한 제안을 제공합니다.',
-      devPrompt: '코드 작성 및 디버깅에 도움이 되는 제안을 제공합니다.',
-      basicPrompt: '일반적인 글쓰기 제안을 제공합니다.'
-    },
-    ja: {
-      newDoc: '新しいドキュメントを作成',
-      save: '保存',
-      export: 'Google Driveにエクスポート',
-      emptyCTA: 'まだ保存されたドキュメントがありません。<br/><button id="newDocBtn" aria-label="新しいドキュメントを作成">+ 新しいドキュメントを作成</button>',
-      loginGate: 'ログインが必要です',
-      loginMessage: '保存またはエクスポート機能を使用するにはログインしてください。',
-      loginButton: 'Googleログイン',
-      logout: 'ログアウト',
-      settingsTitle: '設定',
-      settingsClose: '閉じる',
-      enableSuggestions: 'パーソナライズされた提案を有効にする',
-      enableInstant: 'インスタント提案を有効にする（モバイル単語入力）',
-      searchPlaceholder: '検索 (/ または Ctrl+K)',
-      searchBtn: '🔍 検索',
-      foldBtn: '📄 折り畳む/展開する',
-      chatBtn: '💬 チャット',
-      chatHeader: '💬 Geminiチャット',
-      chatPlaceholder: 'Enterで送信',
-      themeBtn: '🌙 テーマ',
-      helpTitle: '❓ ヘルプ',
-      closeBtn: '閉じる',
-      agreeBtn: '同意する',
-      consentTitle: 'データ収集の同意',
-      consentMessage: '本サービスを利用することで、個人情報（メールアドレス、IPアドレス、使用ログ）の収集・利用に同意したものとみなされます。<br/>機密情報は入力しないでください。',
-      docListTitle: 'ドキュメント',
-      chatListTitle: 'チャット履歴',
-      termsTitle: '利用規約',
-      privacyTitle: 'プライバシーポリシー',
-      usageTitle: '使用ガイド',
-      footerWarning: '⚠️ AIの出力は正確でない場合があります。<strong>重要な内容は必ず確認してください。</strong><br/>⚠️ 機密情報は入力・保存しないでください。',
-      helpContent: {
-        termsOfService: ['1. 本サービスはAIを使用した思考整理ツールです。', '2. ユーザーはサービス利用時にすべてのコンテンツに責任を負います。', '3. サービスは予告なく変更されることがあります。'],
-        privacyPolicy: ['1. 収集項目：メールアドレス、IPアドレス、使用ログ。', '2. 利用目的：サービスの提供および改善、位置情報に基づく推薦。', '3. 保有期間：ユーザーのリクエストにより削除。', '4. 第三者提供：提供しません。'],
-        usageGuide: ['1. エディターにテキストを入力：AIの提案が自動的に表示されます（有効の場合）。', '2. 保存ボタンで文書を保存（ログインが必要）。', '3. チャット機能でAIと対話。', '4. 検索でウェブコンテンツを挿入。', '5. テーマ切替でダークモードを使用。', '6. モード選択でリサーチ、ジャーナリズム、法務文書、開発作業をサポート。', '7. 文書リストの✏️ボタンでタイトルを変更可能。', '8. ヘッダーの言語選択で推奨言語を変更可能。']
-      },
-      offlineAlert: 'インターネット接続を確認してください。ローカルモードに切り替えます。',
-      saveSuccess: '✅ Google Drive에 저장되었습니다',
-      saveLocal: 'Google Drive 저장 실패. 로컬에 "%s"로 저장되었습니다',
-      exportSuccess: '✅ Google Drive에 저장되었습니다. Google Docs에서 확인하세요',
-      exportLocal: 'Google Drive 내보내기 실패. 로컬에 "%s"로 저장되었습니다',
-      titlePrompt: 'ドキュメントのタイトルを入力してください：',
-      renamePrompt: '新しいタイトルを入力してください：',
-      reviewPrompt: 'ドキュメントを確認しますか？',
-      noResponse: '応答を生成できませんでした。',
-      searchConfirm: '検索：',
-      searchGoogle: 'Googleで検索しますか？',
-      noResults: '検索結果がありません',
-      openBtn: '移動',
-      insertBtn: '挿入',
-      editorPlaceholder: 'ここに入力してください...',
-      charCount: '文字',
-      modeChange: 'モード変更',
-      journalistPrompt: 'ニュース記事の作成に役立つ提案を提供します。',
-      researchPrompt: '研究論文の作成に適した提案を提供します。',
-      lawPrompt: '法務文書の作成に必要な提案を提供します。',
-      devPrompt: 'コードの作成とデバッグに役立つ提案を提供します。',
-      basicPrompt: '一般的なライティングの提案を提供します。'
-    }
-  };
-
-  /* ───────── Functions ───────── */
-  function showOfflineAlert() {
-    if (!offlineAlertShown) {
-      alert(languageLabels[preferredLanguage]?.offlineAlert || languageLabels.en.offlineAlert);
-      offlineAlertShown = true;
-      localStorage.setItem('offlineAlertShown', 'true');
-    }
-  }
-
-  async function getGeoLanguage() {
-    try {
-      const response = await fetch('https://ipapi.co/json/');
-      if (!response.ok) throw new Error('Geolocation API failed');
-      const data = await response.json();
-      const countryCode = data.country_code;
-      const languageMap = {
-        'US': 'en', 'CA': 'en', 'GB': 'en', 'AU': 'en',
-        'KR': 'ko',
-        'JP': 'ja',
-        'VN': 'vi',
-        'CN': 'zh',
-        'FR': 'fr'
-      };
-      const lang = languageMap[countryCode] || 'en';
-      localStorage.setItem('cachedGeoLanguage', lang);
-      const wordMap = {
-        'en': ['apple', 'book', 'car', 'dog', 'earth'],
-        'ko': ['공기놀이', '공기놀이', '공기놀이', '공기놀이', '공기놀이'],
-        'ja': ['ありがとう', 'あさ', 'あめ', 'あか', 'あし']
-      };
-      localStorage.setItem('cachedGeoWords', JSON.stringify(wordMap[lang] || []));
-      return lang;
-    } catch (e) {
-      console.error('Geolocation error:', e);
-      return cachedGeoLanguage || 'en';
-    }
-  }
-
-  function setLanguage(lang) {
-    preferredLanguage = ['en', 'ko', 'ja'].includes(lang) ? lang : cachedGeoLanguage || 'en';
-    localStorage.setItem('preferredLanguage', preferredLanguage);
-    const languageSelect = document.getElementById('languageSelect');
-    const mLanguageSelect = document.getElementById('mLanguageSelect');
-    if (languageSelect) languageSelect.value = preferredLanguage;
-    if (mLanguageSelect) mLanguageSelect.value = preferredLanguage;
-    updateUI(preferredLanguage);
-  }
-
-  function handleCredentialResponse(res) {
-    try {
-      const p = JSON.parse(atob(res.credential.split('.')[1]));
-      const loginDisplay = document.getElementById('loginDisplay');
-      if (loginDisplay) loginDisplay.textContent = `${p.name}`;
-      isLoggedIn = true;
-      const loginGate = document.getElementById('loginGate');
-      if (loginGate) loginGate.style.display = 'none';
-      const authBtn = document.getElementById('authBtn');
-      if (authBtn) {
-        authBtn.textContent = languageLabels[preferredLanguage]?.logout || languageLabels.en.logout;
-        authBtn.onclick = logout;
-      }
-      if (typeof gapi !== 'undefined') {
-        gapi.load('client', () => {
-          gapi.client.init({
-            apiKey: document.querySelector('meta[name="google-api-key"]').content,
-            clientId: document.querySelector('meta[name="google-signin-client_id"]').content,
-            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-            scope: "https://www.googleapis.com/auth/drive.file"
-          }).then(() => {
-            loadDocs();
-          }).catch(e => {
-            console.error('Drive init error:', e);
-            showOfflineAlert();
-          });
-        });
-      } else {
-        console.error('gapi is not defined');
-        showOfflineAlert();
-      }
-    } catch (e) {
-      console.error('Login error:', e);
-      showOfflineAlert();
-    }
-  }
-
-  function initGoogleLogin() {
-    if (typeof google !== 'undefined' && google.accounts) {
-      google.accounts.id.initialize({
-        client_id: document.querySelector('meta[name="google-signin-client_id"]').content,
-        callback: handleCredentialResponse,
-        use_fedcm_for_prompt: false
-      });
-      const authBtn = document.getElementById('authBtn');
-      if (authBtn) {
-        google.accounts.id.renderButton(authBtn, { theme: 'outline', size: 'small' });
-        google.accounts.id.prompt();
-      } else {
-        console.error('authBtn not found');
-        setTimeout(initGoogleLogin, 1000);
-      }
-    } else {
-      console.error('Google accounts API is not defined');
-      setTimeout(initGoogleLogin, 1000);
-    }
-  }
-
-  function logout() {
-    isLoggedIn = false;
-    const loginDisplay = document.getElementById('loginDisplay');
-    if (loginDisplay) loginDisplay.textContent = '';
-    const authBtn = document.getElementById('authBtn');
-    if (authBtn) {
-      authBtn.textContent = languageLabels[preferredLanguage]?.loginButton || languageLabels.en.loginButton;
-      authBtn.onclick = () => google.accounts.id.prompt();
-      if (typeof google !== 'undefined' && google.accounts) {
-        google.accounts.id.renderButton(authBtn, { theme: 'outline', size: 'small' });
-      }
-    }
-    const loginGate = document.getElementById('loginGate');
-    if (loginGate) loginGate.style.display = 'flex';
-    loadDocs();
-  }
-
-  function checkGate() {
-    if (!isLoggedIn) {
-      const loginGate = document.getElementById('loginGate');
-      if (loginGate) loginGate.style.display = 'flex';
-    }
-  }
-
-  function updateUI(lang) {
-    const labels = languageLabels[lang] || languageLabels.en;
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (labels[key]) el.innerHTML = labels[key];
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      if (labels[key]) el.placeholder = labels[key];
-    });
-    const editor = document.getElementById('editor');
-    if (editor) editor.setAttribute('data-placeholder', labels.editorPlaceholder);
-    const helpBox = document.getElementById('helpBox');
-    if (helpBox) {
-      helpBox.querySelector('#termsOfService').innerHTML = `<h4 data-i18n="termsTitle">${labels.termsTitle}</h4>` + 
-        (labels.helpContent.termsOfService || []).map(p => `<p>${p}</p>`).join('');
-      helpBox.querySelector('#privacyPolicy').innerHTML = `<h4 data-i18n="privacyTitle">${labels.privacyTitle}</h4>` + 
-        (labels.helpContent.privacyPolicy || []).map(p => `<p>${p}</p>`).join('');
-      helpBox.querySelector('#usageGuide').innerHTML = `<h4 data-i18n="usageTitle">${labels.usageTitle}</h4>` + 
-        (labels.helpContent.usageGuide || []).map(p => `<p>${p}</p>`).join('');
-    }
-  }
-
-  function waitForCKEditor() {
-    return new Promise((resolve, reject) => {
-      const start = Date.now();
-      const check = () => {
-        if (typeof ClassicEditor !== 'undefined') {
-          resolve();
-        } else if (Date.now() - start > 10000) {
-          reject(new Error('CKEditor load failed'));
-        } else {
-          setTimeout(check, 100);
+    /* ===== i18n (ko/en/ja 지원) ===== */
+    const I18N = {
+      ko: {
+        ui: {
+          authLogin:'Google 로그인',authLogout:'로그아웃',
+          save:'저장',chat:'채팅',theme:'테마',settings:'설정',help:'도움말',
+          naver:'네이버 블로그',twitter:'트위터',
+          documents:'문서 목록',chats:'채팅 기록',
+          newDoc:'➕ 새 문서',newDocCTA:'+ 새 문서',empty:'아직 저장된 문서가 없습니다.',
+          searchPH:'검색 (/ 또는 Ctrl+K)',searchBtn:'검색',
+          savePdf:'PDF로 저장',saveHtml:'기기에 저장하기(HTML)',exportDrive:'Drive로 내보내기(Google Docs)',
+          drawerClose:'닫기',drawerLang:'Language',drawerMode:'Mode',
+          consentTitle:'개인정보 수집·이용 안내',
+          consentBody:'You can use the service without signing in. ...',
+          privacy:'개인정보 처리방침 자세히 보기',tos:'서비스 이용약관 자세히 보기',
+          agree:'동의',decline:'거부',badgeOn:'추천 ON',badgeOff:'추천 OFF',badgeWait:'동의 대기',
+          helpTitle:'도움말',
+          helpHtml:'<ul style="line-height:1.8;margin-left:1rem"><li>문서 작성·요약</li><li>웹 검색 결과 삽입</li><li>PII 마스킹</li><li>복사 버튼 / 붙여넣기 단축키</li></ul>',
+          settingsTitle:'설정',
+          labelSuggest:'추천 에디터 사용',
+          labelInstant:'모바일 즉시 제안',
+          labelPdfMask:'PDF 저장 시 마스킹 적용',
+          labelPiiHighlight:'에디터에서 PII 하이라이트 표시',
+          reopenConsent:'개인정보 동의 다시 설정',toggleTheme:'테마 토글',
+          chatTitle:'💬 Gemini Chat',chatFull:'⤢ Full',chatClose:'Close',chatPH:'Enter로 전송',
+          jumpFirst:'첫 결과',jumpOpen:'바로 이동',jumpInsert:'에디터에 삽입'
+        },
+        msg:{
+          insertDone:'삽입되었습니다.',
+          searchTooShort:'검색어를 2자 이상 입력하세요.',
+          noResults:'검색 결과가 없습니다.',
+          searchOK:'검색 결과를 가져왔어요.',
+          searchErr:'검색 중 오류가 발생했어요.',
+          newDoc:'새 문서를 시작합니다.',
+          loginOK:'로그인 성공',loginFail:'로그인 실패',needLogin:'먼저 로그인해 주세요.',logoutOK:'로그아웃되었습니다.',
+          pdfFail:'PDF 저장 실패',pdfOK:'✅ PDF로 저장했어요',fileOK:'✅ 파일 다운로드를 시작했어요',
+          exportFail:'내보내기 실패',exportOK:'✅ Drive로 내보내기 완료',
+          cloudLoaded:'☁️ 클라우드 초안을 불러왔어요.',docLoaded:'문서를 불러왔어요.',
+          consentSaved:'동의가 저장되었습니다.',consentOff:'추천 에디터가 비활성화됩니다.',
+          attachOK:'첨부를 삽입했어요.',popupBlocked:'팝업이 차단되어 링크를 복사했어요!'
         }
-      };
-      check();
-    });
-  }
+      },
+      en: {
+        ui: {
+          authLogin:'Sign in with Google',authLogout:'Sign out',
+          save:'Save',chat:'Chat',theme:'Theme',settings:'Settings',help:'Help',
+          naver:'Naver Blog',twitter:'Twitter',
+          documents:'Documents',chats:'Chat History',
+          newDoc:'➕ New document',newDocCTA:'+ New document',empty:'No documents yet.',
+          searchPH:'Search (/ or Ctrl+K)',searchBtn:'Search',
+          savePdf:'Save as PDF',saveHtml:'Save to device (HTML)',exportDrive:'Export to Drive (Google Docs)',
+          drawerClose:'Close',drawerLang:'Language',drawerMode:'Mode',
+          consentTitle:'Privacy Notice',
+          consentBody:'You can use the service without signing in. ...',
+          privacy:'View Privacy Policy',tos:'View Terms of Service',
+          agree:'Agree',decline:'Decline',badgeOn:'Suggest ON',badgeOff:'Suggest OFF',badgeWait:'Pending',
+          helpTitle:'Help',
+          helpHtml:'<ul style="line-height:1.8;margin-left:1rem"><li>Draft & summarize</li><li>Insert web results</li><li>PII masking</li><li>Copy button / paste shortcut</li></ul>',
+          settingsTitle:'Settings',
+          labelSuggest:'Use suggestion editor',
+          labelInstant:'Instant suggestions (mobile)',
+          labelPdfMask:'Apply masking when saving PDF',
+          labelPiiHighlight:'Show PII highlight in editor',
+          reopenConsent:'Review privacy consent',toggleTheme:'Toggle theme',
+          chatTitle:'💬 Gemini Chat',chatFull:'⤢ Full',chatClose:'Close',chatPH:'Press Enter to send',
+          jumpFirst:'Top result',jumpOpen:'Open now',jumpInsert:'Insert to editor'
+        },
+        msg:{
+          insertDone:'Inserted.',
+          searchTooShort:'Type at least 2 characters.',
+          noResults:'No results.',
+          searchOK:'Inserted a search result.',
+          searchErr:'Search failed.',
+          newDoc:'Starting a new document.',
+          loginOK:'Signed in.',loginFail:'Failed to handle sign-in.',needLogin:'Please sign in first.',logoutOK:'Signed out.',
+          pdfFail:'Failed to create PDF — please try again.',pdfOK:'✅ Saved as PDF',fileOK:'✅ Started downloading the file',
+          exportFail:'Export failed — please try again.',exportOK:'✅ Exported to Google Docs',
+          cloudLoaded:'☁️ Loaded your cloud draft.',docLoaded:'Loaded the document.',
+          consentSaved:'Consent saved.',consentOff:'Suggestion editor will be disabled.',
+          attachOK:'Attachment inserted.',popupBlocked:'Popup blocked; copied the link instead!'
+        }
+      },
+      ja: {
+        ui: {
+          authLogin:'Googleでログイン',authLogout:'ログアウト',
+          save:'保存',chat:'チャット',theme:'テーマ',settings:'設定',help:'ヘルプ',
+          naver:'ネイバーブログ',twitter:'X(旧Twitter)',
+          documents:'ドキュメント',chats:'チャット履歴',
+          newDoc:'➕ 新規ドキュメント',newDocCTA:'+ 新規ドキュメント',empty:'まだ保存された文書はありません。',
+          searchPH:'検索 (/ または Ctrl+K)',searchBtn:'検索',
+          savePdf:'PDFで保存',saveHtml:'端末に保存(HTML)',exportDrive:'Driveにエクスポート(Google Docs)',
+          drawerClose:'閉じる',drawerLang:'Language',drawerMode:'Mode',
+          consentTitle:'個人情報の取扱い',
+          consentBody:'サインインなしでも利用できますが…',
+          privacy:'プライバシーポリシー',tos:'利用規約',
+          agree:'同意',decline:'拒否',badgeOn:'提案 ON',badgeOff:'提案 OFF',badgeWait:'保留',
+          helpTitle:'ヘルプ',
+          helpHtml:'<ul style="line-height:1.8;margin-left:1rem"><li>下書き＆要約</li><li>ウェブ結果の挿入</li><li>PIIマスキング</li><li>コピー/ペーストのショートカット</li></ul>',
+          settingsTitle:'設定',
+          labelSuggest:'提案エディタを使用',
+          labelInstant:'モバイル即時提案',
+          labelPdfMask:'PDF保存時にマスキング',
+          labelPiiHighlight:'エディタでPIIをハイライト',
+          reopenConsent:'同意を再設定',toggleTheme:'テーマ切替',
+          chatTitle:'💬 Gemini チャット',chatFull:'⤢ 全画面',chatClose:'閉じる',chatPH:'Enterで送信',
+          jumpFirst:'上位結果',jumpOpen:'今すぐ開く',jumpInsert:'エディタに挿入'
+        },
+        msg:{
+          insertDone:'挿入しました。',
+          searchTooShort:'2文字以上入力してください。',
+          noResults:'結果が見つかりません。',
+          searchOK:'検索結果を挿入しました。',
+          searchErr:'検索に失敗しました。',
+          newDoc:'新しいドキュメントを開始します。',
+          loginOK:'ログインしました',loginFail:'ログインに失敗',needLogin:'先にログインしてください。',logoutOK:'ログアウトしました。',
+          pdfFail:'PDFの作成に失敗',pdfOK:'✅ PDFで保存しました',fileOK:'✅ ダウンロードを開始しました',
+          exportFail:'エクスポートに失敗',exportOK:'✅ Google Docsへエクスポート完了',
+          cloudLoaded:'☁️ クラウド下書きを読み込みました。',docLoaded:'ドキュメントを読み込みました。',
+          consentSaved:'同意を保存しました。',consentOff:'提案エディタは無効になります。',
+          attachOK:'添付を挿入しました。',popupBlocked:'ポップアップがブロックされました。リンクをコピーしました！'
+        }
+      }
+    };
 
-  function loadLearnedData() {
-    try {
-      const data = localStorage.getItem('learnedSuggestions');
-      return data ? JSON.parse(data) : { en: [], ko: [], ja: [] };
-    } catch (e) {
-      console.error('Failed to load learned data:', e);
-      return { en: [], ko: [], ja: [] };
+    /* ===== Helpers & Config ===== */
+    const API_ORIGIN = 'https://api-w7dmw4n5zq-du.a.run.app';
+    const apiUrl = (p='') => `${API_ORIGIN}/api/${String(p).replace(/^\/+/,'')}`;
+    const $ = id => document.querySelector(id.startsWith('#')?id:('#'+id));
+
+    // HTML -> Plain text
+    const htmlToText = (html='')=>{
+      const tmp=document.createElement('div'); tmp.innerHTML=html;
+      const t=(tmp.textContent||'').replace(/\u00A0/g,' ');
+      return t.replace(/\s+/g,' ').trim();
+    };
+
+    // 작은 빨간 에러 텍스트 제거
+    function hideSmallRedHints(){
+      document.querySelectorAll('small[style*="color:red"]').forEach(n=>n.remove());
     }
-  }
 
-  function saveLearnedData(data) {
-    try {
-      localStorage.setItem('learnedSuggestions', JSON.stringify(data));
-    } catch (e) {
-      console.error('Failed to save learned data:', e);
+    // i18n 적용
+    let uiLang = localStorage.getItem('lang') || 'ko';
+    let L = I18N[uiLang] || I18N.ko;
+    function applyLang(lang){
+      uiLang = ['ko','en','ja'].includes(lang)?lang:'ko';
+      L = I18N[uiLang] || I18N.ko;
+
+      $('#saveBtn').textContent = '💾 '+L.ui.save;
+      $('#chatBtn').textContent = '💬 '+L.ui.chat;
+      $('#themeBtn').textContent = '🌙 '+L.ui.theme;
+      $('#settingsBtn').textContent = '⚙️ '+L.ui.settings;
+      $('#helpBtn').textContent = '❓ '+L.ui.help;
+      $('#shareNaverBtn').textContent = L.ui.naver;
+      $('#shareTwitterBtn').textContent = L.ui.twitter;
+      $('#docListTitle').textContent = L.ui.documents;
+      $('#chatListTitle').textContent = L.ui.chats;
+      $('#newDocBtn').textContent = L.ui.newDoc;
+      if($('#newDocCTA')) $('#newDocCTA').textContent = L.ui.newDocCTA;
+      $('#emptyText').textContent = L.ui.empty;
+      $('#searchInput').placeholder = L.ui.searchPH;
+      $('#searchBtnText').textContent = L.ui.searchBtn;
+      $('#saveMenuPdf span').textContent = L.ui.savePdf;
+      $('#saveMenuDevice span').textContent = L.ui.saveHtml;
+      $('#exportBtn span').textContent = L.ui.exportDrive;
+      $('#labelLang').textContent = L.ui.drawerLang;
+      $('#labelMode').textContent = L.ui.drawerMode;
+      $('#themeBtnMobile').textContent = '🌙 '+L.ui.theme;
+      $('#settingsBtnMobile').textContent = '⚙️ '+L.ui.settings;
+      $('#shareNaverBtnMobile').textContent = L.ui.naver;
+      $('#shareTwitterBtnMobile').textContent = L.ui.twitter;
+      $('#drawerClose').textContent = L.ui.drawerClose;
+      $('#helpTitle').textContent = L.ui.helpTitle;
+      $('#helpContent').innerHTML = L.ui.helpHtml;
+      const helpInline = $('#helpInlineMobile');
+      if(helpInline){ helpInline.innerHTML = `<h3 style="margin:.2rem 0 .4rem 0">${L.ui.helpTitle}</h3>` + (L.ui.helpHtml||''); }
+      $('#settingsTitle').textContent = L.ui.settingsTitle;
+      $('#labelSuggest').textContent = L.ui.labelSuggest;
+      $('#labelInstant').textContent = L.ui.labelInstant;
+      $('#reopenConsent').textContent = L.ui.reopenConsent;
+      $('#toggleThemeInSettings').textContent = L.ui.toggleTheme;
+
+      $('#chatTitle').textContent = L.ui.chatTitle;
+      $('#chatFullscreenToggle').textContent = L.ui.chatFull;
+      $('#chatClose').textContent = L.ui.chatClose;
+      $('#chatInput').placeholder = L.ui.chatPH;
+
+      localStorage.setItem('lang', uiLang);
+      if($('#languageSelect')) $('#languageSelect').value = uiLang;
+      if($('#languageSelectMobile')) $('#languageSelectMobile').value = uiLang;
+
+      // 검색 직행 배너 텍스트 업데이트가 필요할 수 있으니 숨김만 처리
+      $('#searchJump').style.display='none';
     }
-  }
 
-  function updateLearnedData(word, lang, sentences) {
-    if (!['en', 'ko', 'ja'].includes(lang)) return;
-    const learnedData = loadLearnedData();
-    if (!learnedData[lang].some(w => w.word === word)) {
-      learnedData[lang].push({ word, sentences });
-      saveLearnedData(learnedData);
+    /* ===== State ===== */
+    let editor;
+    let isLoggedIn=false, userProfile=null;
+    let tokenClient=null, accessToken=null, tokenExpiresAt=0;
+    let piiLockActive=false;
+    let cloudDraftFileId=null;
+
+    const CLIENT_ID = (document.querySelector('meta[name="google-signin_client_id"]')?.content || '');
+    const OAUTH_SCOPES = [
+      'openid',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/drive.appdata'
+    ].join(' ');
+
+    /* ===== Theme ===== */
+    function applyTimeTheme(){ const h=new Date().getHours(); document.body.classList.toggle('dark',(h>=18||h<6)); }
+    applyTimeTheme(); setInterval(applyTimeTheme,5*60*1000);
+    $('#themeBtn').onclick = ()=> document.body.classList.toggle('dark');
+    $('#themeBtnMobile').onclick = ()=> document.body.classList.toggle('dark');
+
+    /* ===== Sidebar toggle (모바일) ===== */
+    $('#sidebarToggle').onclick = ()=> $('#sidebar').classList.toggle('open');
+
+    /* ===== Drawer (모바일 햄버거) ===== */
+    const drawer = $('#drawer');
+    $('#menuBtn').onclick = ()=>{ drawer.style.display='flex'; drawer.setAttribute('aria-hidden','false'); };
+    $('#drawerClose').onclick = ()=>{ drawer.style.display='none'; drawer.setAttribute('aria-hidden','true'); };
+    drawer.addEventListener('click', (e)=>{ if(e.target===drawer){ drawer.style.display='none'; drawer.setAttribute('aria-hidden','true'); } });
+
+    /* ===== Toast ===== */
+    function showToast(text,ms=2300){
+      const t=document.createElement('div'); t.className='toast'; t.textContent=text;
+      Object.assign(t.style,{position:'fixed',left:'50%',transform:'translateX(-50%)',bottom:'18px',background:'#333',color:'#fff',padding:'.6rem .9rem',borderRadius:'8px',zIndex:3000});
+      document.body.appendChild(t);
+      setTimeout(()=>{t.style.opacity='0'; t.style.transition='opacity .25s';}, ms-250);
+      setTimeout(()=>t.remove(), ms);
     }
-  }
 
-  function appendChat(cls, txt) {
-    const div = document.createElement('div');
-    div.className = `chatMsg ${cls}`;
-    div.textContent = txt;
-    const chatLog = document.getElementById('chatLog');
-    if (chatLog) {
-      chatLog.appendChild(div);
-      chatLog.scrollTop = chatLog.scrollHeight;
-      saveChat();
+    /* ===== Local docs ===== */
+    const LOCAL_DOCS_KEY='thinkhelper:localDocs:v1';
+    const DRAFT_KEY='thinkhelper:editorDraft:v1';
+    const loadLocalDocs=()=>{try{return JSON.parse(localStorage.getItem(LOCAL_DOCS_KEY)||'[]');}catch(e){return[];}};
+    const saveLocalDocs=(l)=>{try{localStorage.setItem(LOCAL_DOCS_KEY,JSON.stringify(l));}catch(e){}};
+    function addLocalDoc(title, html){
+      const list=loadLocalDocs();
+      list.unshift({id:'local-'+Date.now(), title, html, updatedAt:Date.now()});
+      saveLocalDocs(list); renderDocList(); return list[0];
     }
-    return div;
-  }
-
-  function saveChat() {
-    const chatLog = document.getElementById('chatLog');
-    if (chatLog && chatLog.innerHTML) {
-      const timestamp = Date.now();
-      const title = `Chat-${new Date(timestamp).toISOString().replace(/[:.]/g, '-')}`;
-      localStorage.setItem(`chat-${timestamp}`, JSON.stringify({ title, html: chatLog.innerHTML }));
-      loadDocs();
-    }
-  }
-
-  async function sendChat(msg) {
-    const aiMsg = appendChat('ai', '⏳');
-    try {
-      const lang = detectLanguage(msg);
-      const r = await fetch(`${API}/gpt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: msg, language: lang })
+    function renderDocList(cloudMeta=null){
+      const ul=$('#docList'); ul.innerHTML='';
+      const safe = window.DOMPurify?.sanitize || (x=>x);
+      if(cloudMeta){
+        const li=document.createElement('li');
+        li.innerHTML=`<span>☁️ ${safe(cloudMeta.title||'Cloud Draft')}</span><small>${new Date(cloudMeta.updatedAt||Date.now()).toLocaleString()}</small>`;
+        li.onclick=()=>{ if(cloudMeta.html){ editor.setData(cloudMeta.html); showToast(L.msg.cloudLoaded); } };
+        ul.appendChild(li);
+      }
+      const list=loadLocalDocs();
+      if(!cloudMeta && list.length===0 && ul.children.length===0) $('#emptyCTA').style.display='block';
+      else $('#emptyCTA').style.display='none';
+      list.forEach(d=>{
+        const li=document.createElement('li');
+        li.innerHTML=`<span>💾 ${safe(d.title)}</span><small>${new Date(d.updatedAt).toLocaleString()}</small>`;
+        li.onclick=()=>{ editor.setData(d.html||''); showToast(L.msg.docLoaded); };
+        ul.appendChild(li);
       });
-      if (!r.ok) throw new Error('Chat API failed');
-      const j = await r.json();
-      aiMsg.textContent = j.response?.text || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
-    } catch (e) {
-      console.error('Chat API error:', e);
-      aiMsg.textContent = (fallback(msg).sentences || [])[0] || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
-      showOfflineAlert();
-    }
-  }
-
-  const PII_PATTERNS = [
-    /\b\d{2,3}-\d{2,4}-\d{4}\b/g,
-    /\b[0-9]{6}-[1-4][0-9]{6}\b/g,
-    /(비밀번호|password)\s*[:=]?\s*\S+/gi,
-    /(주소|address)\s*[:=]?\s*.+/gi
-  ];
-  const maskSensitive = t => PII_PATTERNS.reduce((s, r) => s.replace(r, '★ Hidden Sensitive Info ★'), t);
-
-  const EN_MAP = {
-    'a': ['apple', 'ant', 'arrow', 'art', 'animal'],
-    'b': ['banana', 'bird', 'book', 'ball', 'box'],
-    'c': ['cat', 'car', 'cake', 'cloud', 'city'],
-    'd': ['dog', 'door', 'dance', 'day', 'desk'],
-    'e': ['elephant', 'egg', 'ear', 'eye', 'earth'],
-    'f': ['fish', 'flower', 'forest', 'food', 'friend'],
-    'g': ['grape', 'garden', 'game', 'gate', 'girl'],
-    'h': ['house', 'hand', 'horse', 'head', 'hill'],
-    'i': ['ice', 'island', 'idea', 'ink', 'iron'],
-    'j': ['juice', 'jacket', 'jam', 'jet', 'job'],
-    'k': ['kite', 'king', 'key', 'kid', 'kind'],
-    'l': ['lion', 'lamp', 'lake', 'leaf', 'light'],
-    'm': ['moon', 'mouse', 'mountain', 'man', 'music'],
-    'n': ['night', 'nose', 'net', 'nest', 'name'],
-    'o': ['ocean', 'orange', 'owl', 'open', 'oil'],
-    'p': ['piano', 'pen', 'park', 'pig', 'paper'],
-    'q': ['queen', 'quiet', 'quilt', 'quiz', 'quarter'],
-    'r': ['rain', 'road', 'river', 'rose', 'run'],
-    's': ['sun', 'star', 'sea', 'song', 'school'],
-    't': ['tree', 'train', 'table', 'time', 'tiger'],
-    'u': ['umbrella', 'uncle', 'under', 'up', 'unit'],
-    'v': ['violet', 'van', 'vest', 'voice', 'view'],
-    'w': ['water', 'wind', 'wolf', 'window', 'wave'],
-    'x': ['xylophone', 'x-ray', 'xerox', 'xmas', 'x-axis'],
-    'y': ['yellow', 'yoga', 'yard', 'yes', 'year'],
-    'z': ['zebra', 'zero', 'zoo', 'zip', 'zone']
-  };
-  const JA_MAP = {
-    'あ': ['ありがとう', 'あさ', 'あめ', 'あか', 'あし'],
-    'い': ['いいえ', 'いぬ', 'いけ', 'いち', 'いす'],
-    'う': ['うみ', 'うた', 'うさぎ', 'うえ', 'うし'],
-    'え': ['えき', 'えん', 'えい', 'えき', 'えが'],
-    'お': ['おか', 'おに', 'おちゃ', 'おお', 'おや'],
-    'か': ['かお', 'かみ', 'かさ', 'かぜ', 'かき'],
-    'き': ['きん', 'きつ', 'きぼ', 'きみ', 'きん'],
-    'く': ['くも', 'くち', 'くつ', 'くま', 'くろ'],
-    'け': ['けい', 'けん', 'けさ', 'けん', 'けむ'],
-    'こ': ['こども', 'こえ', 'こい', 'こく', 'こま']
-  };
-  const JA_SENTENCES = {
-    'ja': ['こんにちは、お元気ですか？', '何ですか？', 'ありがとうございます。']
-  };
-  const koQA = w => `${w}이(가) 무엇인가요?`;
-  const enQA = w => `What is ${w}?`;
-  const jaQA = w => `${w}とは何ですか?`;
-  const detectLanguage = k => {
-    const langSelect = document.getElementById('languageSelect')?.value || document.getElementById('mLanguageSelect')?.value;
-    if (langSelect && ['en', 'ko', 'ja'].includes(langSelect)) return langSelect;
-    if (!k) return cachedGeoLanguage || 'en';
-    if (/[a-zA-Z]/.test(k)) return 'en';
-    const ch = k[0];
-    if (/[가-힣]/.test(ch)) return 'ko';
-    if (/[ぁ-ん]/.test(ch)) return 'ja';
-    if (/[ăâđêôơư]/.test(ch)) return 'vi';
-    if (/[\u4e00-\u9fff]/.test(ch)) return 'zh';
-    if (/[éèêëçàâäîïôöùûü]/.test(ch)) return 'fr';
-    return cachedGeoLanguage || 'en';
-  };
-  const getCachedWords = lang => {
-    return cachedGeoWords[lang] || (JSON.parse(localStorage.getItem('cachedGeoWords')) || []);
-  };
-  const fallback = k => {
-    const lang = detectLanguage(k);
-    const learnedData = loadLearnedData();
-    const learned = learnedData[lang].find(w => w.word === k);
-    if (learned) {
-      return { words: learned.sentences.map(s => s.split(' ')[0]), sentences: learned.sentences };
-    }
-    if (!navigator.onLine) {
-      const cachedWords = getCachedWords(lang);
-      if (cachedWords.length) {
-        return { words: cachedWords, sentences: cachedWords.slice(0, 3).map(w => {
-          return lang === 'en' ? enQA(w) : lang === 'ko' ? koQA(w) : jaQA(w);
-        }) };
-      }
-    }
-    if (lang === 'ko') {
-      return { words: [k], sentences: [koQA(k)] };
-    } else if (lang === 'ja') {
-      const w = JA_MAP[k[0]] || JA_MAP['あ'];
-      const s = JA_SENTENCES['ja'] || [];
-      return { words: w, sentences: [...w.slice(0, 2).map(jaQA), ...s] };
-    } else {
-      const w = EN_MAP[k[0]?.toLowerCase()] || EN_MAP['a'];
-      return { words: w, sentences: w.slice(0, 3).map(enQA) };
-    }
-  };
-  const guessIntent = t => /^[가-힣]{1,2}$/.test(t) || /^[ぁ-ん]/.test(t) ? 'define' : /\?\s*$/.test(t) ? 'ask' : (/[.!?]$/.test(t) && t.split(' ').length > 5) ? 'write' : 'other';
-  const postSuggest = async k => {
-    if (!enableSuggestions || k.trim().length < 2) return fallback(k);
-    try {
-      let modePrompt = '';
-      switch (mode) {
-        case 'journalist': modePrompt = languageLabels[preferredLanguage]?.journalistPrompt || languageLabels.en.journalistPrompt; break;
-        case 'research': modePrompt = languageLabels[preferredLanguage]?.researchPrompt || languageLabels.en.researchPrompt; break;
-        case 'law': modePrompt = languageLabels[preferredLanguage]?.lawPrompt || languageLabels.en.lawPrompt; break;
-        case 'dev': modePrompt = languageLabels[preferredLanguage]?.devPrompt || languageLabels.en.devPrompt; break;
-        default: modePrompt = languageLabels[preferredLanguage]?.basicPrompt || languageLabels.en.basicPrompt; break;
-      }
-      const lang = detectLanguage(k);
-      const r = await fetch(`${API}/suggestAI`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: modePrompt + ' ' + k, mode, intent: guessIntent(k), context: '', language: lang })
-      });
-      if (!r.ok) throw new Error('Suggest API failed');
-      const result = await r.json();
-      updateLearnedData(k, lang, result.sentences || []);
-      return result;
-    } catch (e) {
-      console.error('Suggest API error:', e);
-      showOfflineAlert();
-      return fallback(k);
-    }
-  };
-  const searchAPI = async q => {
-    try {
-      const lang = detectLanguage(q);
-      const r = await fetch(`${API}/search?q=${encodeURIComponent(q)}&language=${lang}`);
-      if (!r.ok) throw new Error('Search API failed');
-      return (await r.json()).links || [];
-    } catch (e) {
-      console.error('Search API error:', e);
-      showOfflineAlert();
-      return [];
-    }
-  };
-
-  async function loadDocs() {
-    const docList = document.getElementById('docList');
-    const chatList = document.getElementById('chatList');
-    if (docList) docList.innerHTML = '';
-    if (chatList) chatList.innerHTML = '';
-
-    const localDocs = Object.keys(localStorage)
-      .filter(key => key.startsWith('doc-'))
-      .map(key => ({ key, ...JSON.parse(localStorage.getItem(key)), local: true }))
-      .sort((a, b) => b.key.localeCompare(a.key));
-
-    let driveDocs = [];
-    if (isLoggedIn && gapi.client.drive) {
-      try {
-        const response = await gapi.client.drive.files.list({
-          q: "name contains 'thinkhelper_doc_' and trashed = false",
-          fields: "files(id, name)"
-        });
-        driveDocs = response.result.files || [];
-        driveDocs.sort((a, b) => b.name.localeCompare(a.name));
-      } catch (e) {
-        console.error('Drive load error:', e);
-        showOfflineAlert();
-      }
     }
 
-    const allDocs = [
-      ...driveDocs.map(file => ({
-        key: file.id,
-        title: file.name.replace('thinkhelper_doc_', '').replace('.html', ''),
-        local: false
-      })),
-      ...localDocs
+    /* ===== Share ===== */
+    function openPopup(u){
+      const w=600,h=640,y=(window.outerHeight/2+window.screenY-h/2),x=(window.outerWidth/2+window.screenX-w/2);
+      const win=window.open(u,'_blank',`noopener,width=${w},height=${h},left=${x},top=${y}`);
+      if(!win && navigator.clipboard?.writeText){ navigator.clipboard.writeText(u).then(()=> showToast(L.msg.popupBlocked)); }
+    }
+    function openExternal(u){
+      const win=window.open(u,'_blank','noopener');
+      if(!win && navigator.clipboard?.writeText){ navigator.clipboard.writeText(u).then(()=> showToast(L.msg.popupBlocked)); }
+    }
+    function getSharePayload(){
+      const html=editor?.getData?.()||'';
+      const text=htmlToText(html);
+      return { title: text.slice(0,80)||'ThinkHelper', url: location.href };
+    }
+    function bindShare(btn, builder){
+      if(btn) btn.onclick = ()=>{ const p=getSharePayload(); openPopup(builder(p.title,p.url)); };
+    }
+    bindShare($('#shareNaverBtn'),(t,u)=>`https://share.naver.com/web/shareView?url=${encodeURIComponent(u)}&title=${encodeURIComponent(t)}`);
+    bindShare($('#shareTwitterBtn'),(t,u)=>`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`);
+    bindShare($('#shareNaverBtnMobile'),(t,u)=>`https://share.naver.com/web/shareView?url=${encodeURIComponent(u)}&title=${encodeURIComponent(t)}`);
+    bindShare($('#shareTwitterBtnMobile'),(t,u)=>`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`);
+
+    /* ===== CKEditor Upload ===== */
+    const fileToDataURL=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});
+    class Base64UploadAdapter{ constructor(loader){this.loader=loader;} async upload(){const f=await this.loader.file;if(f.size>5*1024*1024) throw new Error('이미지 파일이 너무 큽니다.(최대 5MB)'); return {default: await fileToDataURL(f)};} abort(){} }
+
+    /* ===== PII detection ===== */
+    const PII_PATTERNS = [
+      {type:'rrn',     rx:/\b\d{6}[- ]?\d{7}\b/g},
+      {type:'card',    rx:/\b(?:\d{4}[- ]?){3}\d{4}\b/g},
+      {type:'dl',      rx:/\b\d{2}-\d{2}-\d{6}-\d{2}\b/g},
+      {type:'passport',rx:/\b[A-Z]{1}\d{7,8}\b/g},
+      {type:'phone',   rx:/\b(?:01[016789]|0\d{1,2})[- ]?\d{3,4}[- ]?\d{4}\b/g},
+      {type:'email',   rx:/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g},
+      {type:'acct',    rx:/\b\d{2,6}(?:-\d{2,6}){1,3}\b/g},
+      {type:'addr',    rx:/(?:[가-힣]{2,10}(시|군|구))\s?.{0,20}?\d{1,4}(?:-\d{1,3})?\b/g}
     ];
-
-    const emptyCTA = document.getElementById('emptyCTA');
-    if (!allDocs.length) {
-      if (emptyCTA) emptyCTA.style.display = 'block';
-    } else {
-      if (emptyCTA) emptyCTA.style.display = 'none';
-      allDocs.forEach(doc => {
-        const li = document.createElement('li');
-        li.textContent = doc.title;
-        li.onclick = async () => {
-          if (doc.local) {
-            if (window.editor) window.editor.setData(doc.html);
-          } else {
-            try {
-              const fileResponse = await gapi.client.drive.files.get({
-                fileId: doc.key,
-                alt: 'media'
-              });
-              if (window.editor) window.editor.setData(fileResponse.body);
-            } catch (e) {
-              console.error('Drive load error:', e);
-              showOfflineAlert();
-            }
-          }
-        };
-        const rename = document.createElement('span');
-        rename.textContent = '✏️';
-        rename.className = 'doc-rename';
-        rename.onclick = async e => {
-          e.stopPropagation();
-          const newTitle = prompt(languageLabels[preferredLanguage]?.renamePrompt || languageLabels.en.renamePrompt, doc.title);
-          if (newTitle && newTitle.trim()) {
-            if (doc.local) {
-              const content = JSON.parse(localStorage.getItem(doc.key)).html;
-              localStorage.removeItem(doc.key);
-              localStorage.setItem(`doc-${Date.now()}`, JSON.stringify({ title: newTitle.trim(), html: content }));
-              loadDocs();
-            } else {
-              try {
-                await gapi.client.drive.files.update({
-                  fileId: doc.key,
-                  resource: { name: `thinkhelper_doc_${newTitle.trim()}.html` }
-                });
-                loadDocs();
-              } catch (e) {
-                console.error('Rename error:', e);
-                showOfflineAlert();
-              }
-            }
-          }
-        };
-        const del = document.createElement('span');
-        del.textContent = '✖︎';
-        del.className = 'doc-del';
-        del.onclick = async e => {
-          e.stopPropagation();
-          if (doc.local) {
-            localStorage.removeItem(doc.key);
-            loadDocs();
-          } else {
-            try {
-              await gapi.client.drive.files.delete({ fileId: doc.key });
-              loadDocs();
-            } catch (e) {
-              console.error('Delete error:', e);
-              showOfflineAlert();
-            }
-          }
-        };
-        li.appendChild(rename);
-        li.appendChild(del);
-        if (docList) docList.appendChild(li);
-      });
-    }
-
-    const chatKeys = Object.keys(localStorage)
-      .filter(key => key.startsWith('chat-'))
-      .sort((a, b) => b.localeCompare(a));
-    chatKeys.forEach(key => {
-      try {
-        const { title, html } = JSON.parse(localStorage.getItem(key));
-        const li = document.createElement('li');
-        li.textContent = title;
-        li.onclick = () => {
-          const chatLog = document.getElementById('chatLog');
-          const chatPanel = document.getElementById('chatPanel');
-          if (chatLog && chatPanel) {
-            chatLog.innerHTML = html;
-            chatPanel.style.display = 'flex';
-          }
-        };
-        const del = document.createElement('span');
-        del.textContent = '✖︎';
-        del.className = 'chat-del';
-        del.onclick = e => {
-          e.stopPropagation();
-          localStorage.removeItem(key);
-          loadDocs();
-        };
-        li.appendChild(del);
-        if (chatList) chatList.appendChild(li);
-      } catch (e) {
-        console.error(`Failed to parse chat ${key}:`, e);
+    const NAME_WITH_CUE = /(?:이름|성함|Name)\s*[:：]?\s*([가-힣]{2,4}|[A-Z][a-z]+(?:\s[A-Z][a-z]+)+)/u;
+    function findPIIMatches(text){
+      const m=[];
+      for(const o of PII_PATTERNS){
+        o.rx.lastIndex=0; let r; while((r=o.rx.exec(text))!==null){ m.push({start:r.index,end:r.index+r[0].length,type:o.type}); }
       }
-    });
-  }
-
-  async function saveDoc() {
-    if (!isLoggedIn) {
-      checkGate();
-      return;
-    }
-    const html = window.editor ? window.editor.getData() : '';
-    const defaultTitle = html.replace(/<[^>]*>/g, '').trim().split(/[\n\.]/)[0] || 'Untitled';
-    const title = prompt(languageLabels[preferredLanguage]?.titlePrompt || languageLabels.en.titlePrompt, defaultTitle);
-    if (!title || !title.trim()) return;
-
-    try {
-      const meta = { name: `thinkhelper_doc_${title.trim()}.html`, mimeType: 'text/html' };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file', new Blob([html], { type: 'text/html' }));
-      const token = gapi.auth.getToken()?.access_token;
-      if (!token) throw new Error('No access token');
-      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + token },
-        body: form
-      });
-      const j = await r.json();
-      if (j.id) {
-        alert(languageLabels[preferredLanguage]?.saveSuccess || languageLabels.en.saveSuccess);
-        loadDocs();
-        if (confirm(languageLabels[preferredLanguage]?.reviewPrompt || languageLabels.en.reviewPrompt)) {
-          const chatPanel = document.getElementById('chatPanel');
-          if (chatPanel) chatPanel.style.display = 'flex';
-          appendChat('ai', languageLabels[preferredLanguage]?.reviewPrompt || languageLabels.en.reviewPrompt);
-          const ai = appendChat('ai', '⏳');
-          try {
-            const lang = detectLanguage(html);
-            const r = await fetch(`${API}/gpt`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: `Generate questions about this document: ${html}`, language: lang })
-            });
-            if (!r.ok) throw new Error('Chat API failed');
-            const j = await r.json();
-            ai.textContent = j.response?.text || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
-          } catch (e) {
-            console.error('Chat API error:', e);
-            ai.textContent = (fallback(html).sentences || [])[0] || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
-            showOfflineAlert();
-          }
-        }
-        localStorage.removeItem('editorDraft');
-      } else {
-        throw new Error('Google Drive save failed');
-      }
-    } catch (e) {
-      console.error('Save error:', e);
-      localStorage.setItem(`doc-${Date.now()}`, JSON.stringify({ title: title.trim(), html }));
-      alert((languageLabels[preferredLanguage]?.saveLocal || languageLabels.en.saveLocal).replace('%s', title.trim()));
-      loadDocs();
-      showOfflineAlert();
-    }
-  }
-
-  async function exportDoc() {
-    if (!isLoggedIn) {
-      checkGate();
-      return;
-    }
-    const html = window.editor ? window.editor.getData() : '';
-    const defaultTitle = html.replace(/<[^>]*>/g, '').trim().split(/[\n\.]/)[0] || 'Untitled';
-    const title = prompt(languageLabels[preferredLanguage]?.titlePrompt || languageLabels.en.titlePrompt, defaultTitle);
-    if (!title || !title.trim()) return;
-
-    try {
-      const meta = { name: `thinkhelper_${title.trim()}`, mimeType: 'application/vnd.google-apps.document' };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file', new Blob([html], { type: 'text/html' }));
-      const token = gapi.auth.getToken()?.access_token;
-      if (!token) throw new Error('No access token');
-      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + token },
-        body: form
-      });
-      const j = await r.json();
-      if (j.id) {
-        alert(languageLabels[preferredLanguage]?.exportSuccess || languageLabels.en.exportSuccess);
-        window.open(`https://docs.google.com/document/d/${j.id}/edit`, '_blank');
-        loadDocs();
-        localStorage.removeItem('editorDraft');
-      } else {
-        throw new Error('Google Drive export failed');
-      }
-    } catch (e) {
-      console.error('Export error:', e);
-      localStorage.setItem(`doc-${Date.now()}`, JSON.stringify({ title: title.trim(), html }));
-      alert((languageLabels[preferredLanguage]?.exportLocal || languageLabels.en.exportLocal).replace('%s', title.trim()));
-      loadDocs();
-      showOfflineAlert();
-    }
-  }
-
-  const popup = document.getElementById('previewPopup');
-  const sug = document.getElementById('suggestions');
-  const hidePopup = () => {
-    if (popup) popup.style.display = 'none';
-  };
-  const showPopup = (html, l, t) => {
-    if (popup) {
-      popup.innerHTML = html;
-      popup.style.left = l + 'px';
-      popup.style.top = t + 'px';
-      popup.style.display = 'block';
-    }
-  };
-
-  function handleKeydown(e, editor, suggestionList) {
-    if (!sug || sug.style.display !== 'block') return;
-    const suggestionItems = sug.querySelectorAll('.suggestion-item');
-    if (!suggestionItems.length) return;
-
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      selectedIndex = selectedIndex <= 0 ? suggestionItems.length - 1 : selectedIndex - 1;
-      suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
-      suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      selectedIndex = selectedIndex >= suggestionItems.length - 1 ? 0 : selectedIndex + 1;
-      suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
-      suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
-    } else if (e.key === 'Tab' && selectedIndex !== -1) {
-      e.preventDefault();
-      const txt = maskSensitive(suggestionList[selectedIndex]);
-      editor.model.change(writer => {
-        writer.insertText(txt + ' ', editor.model.document.selection.getFirstPosition());
-      });
-      sug.style.display = 'none';
-      selectedIndex = -1;
-    }
-  }
-
-  document.addEventListener('click', e => {
-    if (popup && !popup.contains(e.target)) hidePopup();
-    if (sug && sug.style.display === 'block' && !sug.contains(e.target)) {
-      sug.style.display = 'none';
-      selectedIndex = -1;
-    }
-    if (window.innerWidth <= 430 && !e.target.closest('#wrap, #menuToggle, #aside, #loginGate, #chatPanel, #consent, #settingsModal, #helpModal')) {
-      document.body.classList.remove('menu-open');
-    }
-  });
-
-  window.onload = async function() {
-    startTime = Date.now();
-
-    if (!preferredLanguage) {
-      preferredLanguage = await getGeoLanguage();
-      setLanguage(preferredLanguage);
-    } else {
-      setLanguage(preferredLanguage);
+      const nm = NAME_WITH_CUE.exec(text); if(nm) m.push({start:nm.index,end:nm.index+nm[0].length,type:'name'});
+      m.sort((a,b)=> a.start===b.start? b.end-a.end : a.start-b.start);
+      const out=[]; let last=-1;
+      for(const x of m){ if(x.start>=last){ out.push(x); last=x.end; } } return out;
     }
 
-    initGoogleLogin();
-    const loginBtn = document.getElementById('loginBtn');
-    if (loginBtn) {
-      loginBtn.onclick = () => {
-        if (typeof google !== 'undefined' && google.accounts) {
-          google.accounts.id.prompt();
-        }
-      };
+    /* ===== Suggestions (타이핑) ===== */
+    let enableSuggestions = (localStorage.getItem('enableSuggestions')!=='false');
+    let enableInstant = (localStorage.getItem('enableInstant')!=='false');
+    const STOP_WORDS = new Set(['nbsp','amp','lt','gt','quot','apos','copy','reg','deg','ndash','mdash','™','®','©','·','•','—','–','...','…','&nbsp;','',' ']);
+
+    const getLangByContent=s=>/[가-힣]/.test(s)?'ko':'en';
+    const arraysEqual=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
+
+    function lastWordFromSelection(){
+      const sel=window.getSelection();
+      if(!sel || !sel.anchorNode) return '';
+      let s = (sel.anchorNode.textContent || '').slice(0, sel.anchorOffset || undefined);
+      s = s.replace(/\u00A0/g,' ');
+      const parts = s.trim().split(/\s+/);
+      let w = (parts[parts.length-1]||'').replace(/[^\p{L}\p{N}_-]+/gu,'').toLowerCase();
+      if(STOP_WORDS.has(w) || w.length<2) return '';
+      return w;
+    }
+    function buildQuickPrompts(word){
+      if(!enableSuggestions||!word) return [];
+      const lang=uiLang || getLangByContent(word);
+      const base = lang==='ko'
+        ? [`${word}은(는) 무엇?`,`${word} 핵심 3가지`,`${word} 예시`,`${word} 장단점`,`${word} 쉽게 설명`]
+        : lang==='ja'
+        ? [`${word}とは？`,`${word} の要点3つ`,`${word} の例`,`${word} の長所/短所`,`${word} をやさしく説明`]
+        : [`What is ${word}?`,`${word}: 3 key points`,`Examples of ${word}`,`${word} pros & cons`,`Explain ${word} simply`];
+      return base;
     }
 
-    const $ = id => document.getElementById(id);
-    const deb = (fn, ms = 400) => {
-      let t;
-      return (...a) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...a), ms);
-      };
-    };
-
-    let enableSuggestions = localStorage.getItem('enableSuggestions') !== 'false';
-    let enableInstant = localStorage.getItem('enableInstant') !== 'false';
-    const enableSuggestionsInput = $('enableSuggestions');
-    const enableInstantInput = $('enableInstant');
-    if (enableSuggestionsInput) enableSuggestionsInput.checked = enableSuggestions;
-    if (enableInstantInput) enableInstantInput.checked = enableInstant;
-    if (enableSuggestionsInput) {
-      enableSuggestionsInput.onchange = () => {
-        enableSuggestions = enableSuggestionsInput.checked;
-        localStorage.setItem('enableSuggestions', enableSuggestions);
-      };
+    let suggestionIndex=-1, currentSuggestions=[];
+    function positionSuggestions(){
+      const el=$('#suggestions'); if(!el) return;
+      const r=window.getSelection()?.getRangeAt(0)?.getClientRects?.()[0];
+      const rect = r || $('#editor').getBoundingClientRect();
+      el.style.left = Math.max(8,(r?rect.left:rect.left+12))+'px';
+      el.style.top  = ((r?rect.bottom:rect.top+48)+6)+'px';
     }
-    if (enableInstantInput) {
-      enableInstantInput.onchange = () => {
-        enableInstant = enableInstantInput.checked;
-        localStorage.setItem('enableInstant', enableInstant);
-      };
+    function renderSuggestions(list){
+      const el=$('#suggestions');
+      if(!list.length){ el.style.display='none'; suggestionIndex=-1; currentSuggestions=[]; return; }
+      const safe = window.DOMPurify?.sanitize || (x=>x);
+      el.innerHTML=list.map((t,i)=>`<div class="suggestion-item" data-i="${i}">${safe(t)}</div>`).join('');
+      el.querySelectorAll('.suggestion-item').forEach(n=> n.onclick=()=>{ insertAtCursorText(list[+n.dataset.i]); el.style.display='none'; });
+      currentSuggestions=list; suggestionIndex=0; highlightSuggestion(); el.style.display='block'; requestAnimationFrame(positionSuggestions);
     }
-    const settingsBtn = $('settingsBtn');
-    const mSettingsBtn = $('mSettingsBtn');
-    const settingsCloseBtn = $('settingsCloseBtn');
-    const settingsModal = $('settingsModal');
-    if (settingsBtn) settingsBtn.onclick = () => { if (settingsModal) settingsModal.style.display = 'flex'; };
-    if (mSettingsBtn) mSettingsBtn.onclick = () => { if (settingsModal) settingsModal.style.display = 'flex'; };
-    if (settingsCloseBtn) settingsCloseBtn.onclick = () => { if (settingsModal) settingsModal.style.display = 'none'; };
-    if (settingsModal) {
-      settingsModal.addEventListener('click', e => {
-        if (e.target === settingsModal) settingsModal.style.display = 'none';
-      });
+    function highlightSuggestion(){ document.querySelectorAll('#suggestions .suggestion-item').forEach((n,i)=> n.classList.toggle('selected',i===suggestionIndex)); }
+    function insertAtCursorText(text){
+      if(!editor||!text) return;
+      editor.model.change(w=>{ const node=w.createText(text+' '); editor.model.insertContent(node, editor.model.document.selection); });
+      showToast(L.msg.insertDone,900);
     }
-
-    function setTheme(dark) {
-      document.body.classList.toggle('dark', dark);
-      localStorage.setItem('theme', dark ? 'dark' : 'light');
+    function showSuggestionsImmediate(){
+      if(piiLockActive) return;
+      const w=lastWordFromSelection();
+      const list = buildQuickPrompts(w).filter(s=>!/[^\S\r\n]/.test(s.replace(/&nbsp;/g,'')));
+      renderSuggestions(list);
     }
-    const savedTheme = localStorage.getItem('theme');
-    const isDark = savedTheme ? savedTheme === 'dark' : (new Date().getHours() >= 18 || new Date().getHours() < 6);
-    setTheme(isDark);
-    const themeBtn = $('themeBtn');
-    const mThemeBtn = $('mThemeBtn');
-    if (themeBtn) themeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
-    if (mThemeBtn) mThemeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
+    const deb=(fn,ms=200)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+    const showSuggestionsDebounced = deb(showSuggestionsImmediate, 160);
 
-    const consent = $('consent');
-    const agreeBtn = $('agreeBtn');
-    if (!localStorage.getItem('consent-ok') && consent && agreeBtn) {
-      consent.style.display = 'block';
-      agreeBtn.onclick = () => {
-        localStorage.setItem('consent-ok', '1');
-        consent.style.display = 'none';
-      };
-    }
-
-    const foldBtn = $('foldBtn');
-    if (foldBtn) foldBtn.onclick = () => {
-      const wrap = $('wrap');
-      if (wrap) wrap.classList.toggle('collapsed');
-    };
-
-    const modeSelect = $('modeSelect');
-    const mModeSelect = $('mModeSelect');
-    if (modeSelect) {
-      modeSelect.value = mode;
-      modeSelect.onchange = e => {
-        mode = e.target.value;
-        localStorage.setItem('mode', mode);
-        applyModePrompt(mode);
-      };
-    }
-    if (mModeSelect) {
-      mModeSelect.value = mode;
-
-      mModeSelect.onchange = e => {
-        mode = e.target.value;
-        localStorage.setItem('mode', mode);
-        applyModePrompt(mode);
-      };
-    }
-    applyModePrompt(mode);
-
-    function applyModePrompt(mode) {
-      const prompts = {
-        journalist: languageLabels[preferredLanguage]?.journalistPrompt || languageLabels.en.journalistPrompt,
-        research: languageLabels[preferredLanguage]?.researchPrompt || languageLabels.en.researchPrompt,
-        law: languageLabels[preferredLanguage]?.lawPrompt || languageLabels.en.lawPrompt,
-        dev: languageLabels[preferredLanguage]?.devPrompt || languageLabels.en.devPrompt,
-        basic: languageLabels[preferredLanguage]?.basicPrompt || languageLabels.en.basicPrompt
-      };
-      const promptText = prompts[mode] || prompts.basic;
-      appendChat('ai', `${languageLabels[preferredLanguage]?.modeChange || languageLabels.en.modeChange}: ${promptText}`);
-    }
-
-    const languageSelect = $('languageSelect');
-    const mLanguageSelect = $('mLanguageSelect');
-    if (languageSelect) languageSelect.onchange = e => setLanguage(e.target.value);
-    if (mLanguageSelect) mLanguageSelect.onchange = e => setLanguage(e.target.value);
-
-    const menuToggle = $('menuToggle');
-    if (menuToggle) menuToggle.onclick = () => document.body.classList.toggle('menu-open');
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 430) document.body.classList.remove('menu-open');
+    document.addEventListener('keydown',function(e){
+      const el=$('#suggestions'); const visible=el&&el.style.display==='block'; if(!visible||!currentSuggestions.length) return;
+      if(e.key==='ArrowDown'){ e.preventDefault(); suggestionIndex=(suggestionIndex+1)%currentSuggestions.length; highlightSuggestion(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); suggestionIndex=(suggestionIndex-1+currentSuggestions.length)%currentSuggestions.length; highlightSuggestion(); }
+      else if(e.key==='Tab' && !e.ctrlKey && !e.metaKey){ e.preventDefault(); const idx=suggestionIndex>=0?suggestionIndex:0; insertAtCursorText(currentSuggestions[idx]); el.style.display='none'; }
+      else if(e.key==='Escape'){ el.style.display='none'; }
     });
 
-    const chatBtn = $('chatBtn');
-    const mChatBtn = $('mChatBtn');
-    const chatClose = $('chatClose');
-    const chatInput = $('chatInput');
-    if (chatBtn) chatBtn.onclick = () => {
-      const chatPanel = $('chatPanel');
-      if (chatPanel) chatPanel.style.display = 'flex';
-    };
-    if (mChatBtn) mChatBtn.onclick = () => {
-      const chatPanel = $('chatPanel');
-      if (chatPanel) chatPanel.style.display = 'flex';
-    };
-    if (chatClose) chatClose.onclick = () => {
-      const chatPanel = $('chatPanel');
-      if (chatPanel) chatPanel.style.display = 'none';
-    };
-    if (chatInput) {
-      chatInput.addEventListener('keydown', async e => {
-        if (e.key !== 'Enter' || e.isComposing) return;
-        const q = e.target.value.trim();
-        if (!q) return;
-        e.target.value = '';
-        appendChat('user', q);
-        sendChat(q);
-      });
-    }
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        const chatPanel = $('chatPanel');
-        if (chatPanel && chatPanel.style.display === 'flex') {
-          chatPanel.style.display = 'none';
+    /* ===== Copy only ===== */
+    async function copySelection(){
+      try{
+        const sel = window.getSelection();
+        const text = sel && sel.toString ? sel.toString() : '';
+        if(text){
+          await navigator.clipboard?.writeText(text);
+          showToast('✅ Copied'); return;
         }
-        const sug = $('suggestions');
-        if (sug && sug.style.display === 'block') {
-          sug.style.display = 'none';
-          selectedIndex = -1;
-        }
-      }
-    });
-
-    const helpBtn = $('helpBtn');
-    const mHelpBtn = $('mHelpBtn');
-    const helpCloseBtn = $('helpCloseBtn');
-    const helpModal = $('helpModal');
-    if (helpBtn) helpBtn.onclick = () => { if (helpModal) helpModal.style.display = 'flex'; };
-    if (mHelpBtn) mHelpBtn.onclick = () => { if (helpModal) helpModal.style.display = 'flex'; };
-    if (helpCloseBtn) helpCloseBtn.onclick = () => { if (helpModal) helpModal.style.display = 'none'; };
-    if (helpModal) {
-      helpModal.addEventListener('click', e => {
-        if (e.target === helpModal) helpModal.style.display = 'none';
-      });
+      }catch(e){}
+      try{
+        const tmp=document.createElement('textarea'); tmp.style.position='fixed'; tmp.style.opacity='0';
+        tmp.value = htmlToText(editor?.getData?.()||'');
+        document.body.appendChild(tmp); tmp.select(); document.execCommand('copy'); tmp.remove();
+        showToast('✅ Copied');
+      }catch(e){ showToast('Copy failed'); }
     }
+    $('#copyBtn').onclick = copySelection;
 
-    function handleKeydown(e, editor, suggestionList) {
-      if (!sug || sug.style.display !== 'block') return;
-      const suggestionItems = sug.querySelectorAll('.suggestion-item');
-      if (!suggestionItems.length) return;
+    /* ===== Editor init ===== */
+    (async function initEditor(){
+      const ed = await ClassicEditor.create($('#editor'), { extraPlugins: [] });
+      ed.plugins.get('FileRepository').createUploadAdapter = function(loader){ return new Base64UploadAdapter(loader); };
+      editor = ed;
 
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        selectedIndex = selectedIndex <= 0 ? suggestionItems.length - 1 : selectedIndex - 1;
-        suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
-        suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        selectedIndex = selectedIndex >= suggestionItems.length - 1 ? 0 : selectedIndex + 1;
-        suggestionItems.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
-        suggestionItems[selectedIndex].scrollIntoView({ block: 'nearest' });
-      } else if (e.key === 'Tab' && selectedIndex !== -1) {
-        e.preventDefault();
-        const txt = maskSensitive(suggestionList[selectedIndex]);
-        editor.model.change(writer => {
-          writer.insertText(txt + ' ', editor.model.document.selection.getFirstPosition());
+      // Attribute for PII mask
+      editor.model.schema.extend('$text', { allowAttributes: ['piiType'] });
+      editor.conversion.for('downcast').attributeToElement({
+        model:'piiType',
+        view:(val,api)=> api.writer.createAttributeElement('span',{class:'pii-pill','data-type':val},{priority:5})
+      });
+      editor.conversion.for('dataDowncast').attributeToElement({
+        model:'piiType',
+        view:(val,api)=> api.writer.createAttributeElement('span',{class:'pii-pill','data-type':val},{priority:5})
+      });
+
+      // Draft load
+      try{ const saved=localStorage.getItem(DRAFT_KEY); if(saved && !editor.getData()) editor.setData(saved); }catch(e){}
+
+      // FIX: CKEditorError getShiftedBy — use previousPosition as base
+      const scanPII = function(){
+        editor.model.change(function(writer){
+          const root=editor.model.document.getRoot();
+          writer.removeAttribute('piiType', editor.model.createRangeIn(root));
+          const walker=editor.model.createRangeIn(root).getWalker({ignoreElementEnd:true});
+          for(const step of walker){
+            if(!step.item.is('textProxy')) continue;
+            const base = step.previousPosition;
+            const data = step.item.data||''; if(!data.trim()||!base) continue;
+            const matches=findPIIMatches(data);
+            for(const m of matches){
+              const s=base.getShiftedBy(m.start), e=base.getShiftedBy(m.end);
+              writer.setAttribute('piiType', m.type, writer.createRange(s,e));
+            }
+          }
         });
-        sug.style.display = 'none';
-        selectedIndex = -1;
-      }
-    }
+        const sel = editor.model.document.selection;
+        piiLockActive = !!sel.getAttribute('piiType');
+        if(piiLockActive) $('#suggestions').style.display='none';
+      };
 
-    waitForCKEditor().then(() => {
-      ClassicEditor.create($('editor')).then(ed => {
-        window.editor = ed;
-        const savedDraft = localStorage.getItem('editorDraft');
-        if (savedDraft) {
-          ed.setData(savedDraft);
-        }
-        ed.model.document.on('change:data', () => {
-          const charCount = $('charCount');
-          if (charCount) {
-            charCount.textContent = `${ed.getData().replace(/<[^>]*>/g, '').length} ${languageLabels[preferredLanguage]?.charCount || languageLabels.en.charCount}`;
-          }
-          localStorage.setItem('editorDraft', ed.getData());
-        });
+      const saveDraft = deb(function(){
+        try{ localStorage.setItem(DRAFT_KEY, editor.getData()||''); }catch(e){}
+        saveCloudDraftDebounced();
+      }, 500);
 
-        const sug = $('suggestions');
-        let suggestionList = [];
-        ed.model.document.on('change:data', deb(async () => {
-          if (!enableSuggestions) {
-            sug.style.display = 'none';
-            return;
-          }
-          const plain = ed.getData().replace(/<[^>]*>/g, '');
-          const pos = ed.model.document.selection.getFirstPosition();
-          const word = plain.slice(0, pos.offset).match(/(\S+)$/)?.[1] || '';
+      const onChanged=function(){
+        scanPII();
+        if(enableInstant && window.innerWidth<=430) showSuggestionsImmediate();
+        else showSuggestionsDebounced();
+        saveDraft();
+      };
+      ed.model.document.on('change:data', onChanged);
+      ed.model.document.selection.on('change:range', function(){
+        const sel = editor.model.document.selection;
+        piiLockActive = !!sel.getAttribute('piiType');
+        if(!piiLockActive) showSuggestionsDebounced(); else $('#suggestions').style.display='none';
+      });
 
-          if (!word) {
-            sug.style.display = 'none';
-            selectedIndex = -1;
-            return;
-          }
+      const el = ed.ui.view.editable.element;
+      el.addEventListener('keyup', function(){ if(!piiLockActive) showSuggestionsImmediate(); });
+      el.addEventListener('mouseup', function(){ if(!piiLockActive) showSuggestionsImmediate(); });
+      el.addEventListener('focus', function(){ if(!piiLockActive) showSuggestionsImmediate(); });
 
-          if (enableInstant && window.innerWidth <= 430 && plain.trim().split(/\s+/).length === 1 && !topicPromptShown) {
-            const topic = prompt(languageLabels[preferredLanguage]?.titlePrompt || languageLabels.en.titlePrompt);
-            topicPromptShown = true;
-            localStorage.setItem('topicPromptShown', 'true');
-            if (topic) {
-              try {
-                const lang = detectLanguage(topic);
-                const r = await fetch(`${API}/gpt`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    text: `Generate ${
-                      mode === 'journalist' ? 'a news article'
-                      : mode === 'research' ? 'a research summary'
-                      : mode === 'law' ? 'a legal document'
-                      : mode === 'dev' ? 'a code snippet'
-                      : 'content'
-                    } about ${topic} related to ${word}`,
-                    language: lang
-                  })
-                });
-                if (!r.ok) throw new Error('API failed');
-                const j = await r.json();
-                const generated = j.response?.text || (languageLabels[preferredLanguage]?.noResponse || languageLabels.en.noResponse);
-                ed.model.change(writer => {
-                  writer.insertText(generated + ' ', ed.model.document.selection.getFirstPosition());
-                });
-                updateLearnedData(word, lang, [generated]);
-              } catch (e) {
-                console.error('API error:', e);
-                showOfflineAlert();
-                const { words } = fallback(word);
-                ed.model.change(writer => {
-                  writer.insertText(words[0] || word, ed.model.document.selection.getFirstPosition());
-                });
-              }
-            }
-            return;
-          }
+      window.addEventListener('resize', function(){ if($('#suggestions').style.display==='block') positionSuggestions(); });
+      document.addEventListener('scroll', function(){ if($('#suggestions').style.display==='block') positionSuggestions(); }, true);
 
-          const { words, sentences } = await postSuggest(word);
-          suggestionList = sentences.length ? sentences : words.slice(0, 5);
-          if (!suggestionList.length) {
-            sug.style.display = 'none';
-            selectedIndex = -1;
-            return;
-          }
-
-          sug.innerHTML = suggestionList
-            .map((t, i) => `<div class="suggestion-item" data-i="${i}">${DOMPurify.sanitize(t)}</div>`)
-            .join('');
-          sug.querySelectorAll('.suggestion-item').forEach(el => {
-            el.onclick = () => {
-              const txt = maskSensitive(suggestionList[+el.dataset.i]);
-              ed.model.change(writer => {
-                writer.insertText(txt + ' ', ed.model.document.selection.getFirstPosition());
-              });
-              sug.style.display = 'none';
-              selectedIndex = -1;
-            };
-          });
-
-          const selRect = window.getSelection().getRangeAt(0).getBoundingClientRect();
-          const wrapRect = $('wrap').getBoundingClientRect();
-          sug.style.visibility = 'hidden';
-          sug.style.display = 'block';
-          const h = sug.offsetHeight, w = sug.offsetWidth;
-          sug.style.visibility = 'visible';
-          let top = selRect.bottom - wrapRect.top + 4;
-          let left = Math.min(Math.max(selRect.left - wrapRect.left, 0), wrapRect.width - w);
-          if (top + h > wrapRect.height) {
-            top = selRect.top - wrapRect.top - h - 4;
-            if (top < 0) top = wrapRect.height - h;
-          }
-          sug.style.top = `${top}px`;
-          sug.style.left = `${left}px`;
-
-          document.removeEventListener('keydown', e => handleKeydown(e, ed, suggestionList));
-          document.addEventListener('keydown', e => handleKeydown(e, ed, suggestionList));
-        }, 400));
-
-        const ac = $('autocomplete');
-        const searchInput = $('searchInput');
-        if (searchInput) {
-          searchInput.addEventListener('input', deb(async e => {
-            const q = e.target.value.trim();
-            if (q.length < 2 || !ac) {
-              ac.style.display = 'none';
-              return;
-            }
-            const links = await searchAPI(q);
-            ac.innerHTML = links.slice(0, 6).map((l, i) => `
-              <li data-i="${i}">
-                <strong>${DOMPurify.sanitize(l.title)}</strong><br>
-                <small>${DOMPurify.sanitize(l.snippet)}</small><br>
-                <button class="btn tiny" data-open="${l.link}">${languageLabels[preferredLanguage]?.openBtn || languageLabels.en.openBtn}</button>
-              </li>`).join('');
-            ac.querySelectorAll('li').forEach(li => {
-              const item = links[+li.dataset.i];
-              li.onclick = () => {
-                const wrap = $('wrap');
-                if (!wrap) return;
-                const wRect = wrap.getBoundingClientRect();
-                const r = li.getBoundingClientRect();
-                showPopup(`<h4>${DOMPurify.sanitize(item.title)}</h4><p>${DOMPurify.sanitize(item.snippet)}</p><button id="btnInsert" class="btn tiny">${languageLabels[preferredLanguage]?.insertBtn || languageLabels.en.insertBtn}</button>`,
-                  r.left - wRect.left, r.bottom - wRect.top + 4);
-                const btnInsert = document.getElementById('btnInsert');
-                if (btnInsert) {
-                  btnInsert.onclick = () => {
-                    ac.style.display = 'none';
-                    hidePopup();
-                    ed.model.change(writer => {
-                      const h = `<blockquote><p><a href="${item.link}" target="_blank">${DOMPurify.sanitize(item.title)}</a></p><small>${DOMPurify.sanitize(item.snippet)}</small></blockquote><p></p>`;
-                      writer.insert(ed.data.toModel(ed.data.processor.toView(h)), ed.model.document.selection.getFirstPosition());
-                    });
-                  };
-                }
-              };
-              const openBtn = li.querySelector('[data-open]');
-              if (openBtn) {
-                openBtn.onclick = e => {
-                  e.stopPropagation();
-                  window.open(e.currentTarget.dataset.open, '_blank');
-                };
-              }
-            });
-            ac.style.display = links.length ? 'block' : 'none';
-          }, 400));
-
-          searchInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const searchBtn = $('searchBtn');
-              if (searchBtn) searchBtn.click();
-            }
+      // 파일 드롭(비이미지 링크로 첨부)
+      el.addEventListener('drop', async function(e){
+        const files=e.dataTransfer?.files; if(!files||!files.length) return;
+        const non=[]; for(let i=0;i<files.length;i++){ if(!files[i].type.startsWith('image/')) non.push(files[i]); }
+        if(!non.length) return;
+        e.preventDefault();
+        for(const f of non){
+          const url=URL.createObjectURL(f);
+          editor.model.change(function(w){
+            const frag=editor.data.toModel(editor.data.processor.toView('<p>📎 <a href="'+url+'" download="'+encodeURIComponent(f.name)+'">'+f.name+'</a></p>'));
+            w.insert(frag, editor.model.document.selection.getFirstPosition());
           });
         }
-
-        const searchBtn = $('searchBtn');
-        if (searchBtn) {
-          searchBtn.onclick = () => {
-            const q = searchInput ? searchInput.value.trim() : '';
-            if (!q) return;
-            if (confirm(`${languageLabels[preferredLanguage]?.searchConfirm || languageLabels.en.searchConfirm} "${q}" ${languageLabels[preferredLanguage]?.searchGoogle || languageLabels.en.searchGoogle}`)) {
-              window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
-              return;
-            }
-            searchAPI(q).then(links => {
-              if (!links.length) {
-                alert(languageLabels[preferredLanguage]?.noResults || languageLabels.en.noResults);
-                showOfflineAlert();
-                return;
-              }
-              const it = links[0];
-              ed.model.change(writer => {
-                const h = `<blockquote><p><a href="${it.link}" target="_blank">${DOMPurify.sanitize(it.title)}</a></p><small>${DOMPurify.sanitize(it.snippet)}</small></blockquote><p></p>`;
-                writer.insert(ed.data.toModel(ed.data.processor.toView(h)), ed.model.document.selection.getFirstPosition());
-              });
-            }).catch(e => {
-              console.error('Search API error:', e);
-              showOfflineAlert();
-            });
-          };
-        }
-
-        const newDocBtn = $('newDocBtn');
-        if (newDocBtn) {
-          newDocBtn.onclick = () => {
-            if (window.editor) window.editor.setData('');
-            topicPromptShown = false;
-            localStorage.removeItem('topicPromptShown');
-            localStorage.removeItem('editorDraft');
-          };
-        }
-
-        const saveBtn = $('saveBtn');
-        const exportBtn = $('exportBtn');
-        if (saveBtn) saveBtn.onclick = saveDoc;
-        if (exportBtn) exportBtn.onclick = exportDoc;
-        loadDocs();
-      }).catch(e => {
-        console.error('CKEditor initialization error:', e);
-        showOfflineAlert();
+        showToast(L.msg.attachOK);
       });
-    }).catch(e => {
-      console.error('CKEditor load error:', e);
-      showOfflineAlert();
+
+      renderDocList();
+      hideSmallRedHints();
+    })();
+
+    /* ===== Settings ===== */
+    function syncSettingsUI(){
+      $('#toggleSuggestions').checked = (localStorage.getItem('enableSuggestions')!=='false');
+      $('#toggleInstant').checked     = (localStorage.getItem('enableInstant')!=='false');
+      $('#togglePdfMask').checked     = (localStorage.getItem('pdfMask')!=='false'); // 기본 ON
+      $('#togglePiiHighlight').checked= (localStorage.getItem('piiHighlight')!=='false'); // 기본 ON
+      const denied = localStorage.getItem('consent-ok')==='0';
+      $('#toggleSuggestions').disabled = denied;
+    }
+    $('#settingsBtn').onclick = function(){ syncSettingsUI(); document.querySelector('#settingsModal').style.display='flex'; };
+    $('#settingsBtnMobile').onclick = function(){ syncSettingsUI(); document.querySelector('#settingsModal').style.display='flex'; };
+    document.querySelectorAll('.modal .close,[data-close]').forEach(btn=>{
+      btn.addEventListener('click',()=>{ const sel=btn.getAttribute('data-close'); if(sel) document.querySelector(sel).style.display='none'; else document.querySelector('#consent').style.display='none'; });
     });
-    
-  };
+    document.querySelectorAll('.modal').forEach(m=>{
+      m.addEventListener('click',e=>{ if(e.target===m) m.style.display='none'; });
+    });
+
+    $('#toggleSuggestions').addEventListener('change', e=>{ localStorage.setItem('enableSuggestions', e.target.checked?'true':'false'); enableSuggestions=e.target.checked; if(!enableSuggestions) $('#suggestions').style.display='none'; });
+    $('#toggleInstant').addEventListener('change', e=>{ localStorage.setItem('enableInstant', e.target.checked?'true':'false'); enableInstant=e.target.checked; });
+    $('#togglePdfMask').addEventListener('change', e=>{ localStorage.setItem('pdfMask', e.target.checked?'true':'false'); });
+    $('#togglePiiHighlight').addEventListener('change', e=>{
+      localStorage.setItem('piiHighlight', e.target.checked?'true':'false');
+      document.body.classList.toggle('hide-pii', !e.target.checked);
+      const cssId='pii-hide-style';
+      let s=document.getElementById(cssId);
+      if(!e.target.checked){
+        if(!s){ s=document.createElement('style'); s.id=cssId; s.textContent='.ck-content .pii-pill{visibility:hidden}'; document.head.appendChild(s); }
+      }else if(s){ s.remove(); }
+    });
+    $('#toggleThemeInSettings').onclick = ()=> document.body.classList.toggle('dark');
+    $('#reopenConsent').onclick = ()=> document.querySelector('#consent').style.display='flex';
+
+    /* ===== Help ===== */
+    $('#helpBtn').onclick = ()=> document.querySelector('#helpModal').style.display='flex';
+
+    /* ===== Search w/ autosuggest & 바로이동 제안 ===== */
+    const SEARCH_HISTORY_KEY='thinkhelper:searchHistory';
+    const getHistory=()=>{try{return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY)||'[]');}catch(e){return[];}};
+    const addHistory=q=>{if(!q) return; const arr=getHistory().filter(x=>x!==q); arr.unshift(q); localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(arr.slice(0,30)));};
+
+    function buildSearchSuggestions(q){
+      q = (q||'').replace(/\u00A0/g,' ').trim();
+      if(!q) return getHistory().slice(0,8);
+      const hist = getHistory().filter(h=>h.toLowerCase().startsWith(q.toLowerCase()));
+      const exp = uiLang==='ko'
+        ? [`${q} 뜻`,`${q} 예시`,`${q} 핵심`,`${q} 요약`,`${q} 장단점`,`${q} 쉽게 설명`]
+        : uiLang==='ja'
+        ? [`${q} とは`,`${q} 例`,`${q} 要点`,`${q} 要約`,`${q} 長所 短所`,`やさしく ${q}`]
+        : [`${q} meaning`,`${q} examples`,`${q} key points`,`${q} summary`,`${q} pros and cons`,`explain ${q}`];
+      const out = Array.from(new Set([...hist,...exp])).filter(s=>!/(^|\s)nbsp\b/i.test(s)).slice(0,8);
+      return out;
+    }
+    let ssIndex=-1, ssItems=[];
+    function showSearchSuggest(){
+      const q=$('#searchInput').value;
+      const list=buildSearchSuggestions(q);
+      const box=$('#searchSuggest');
+      if(!list.length){ box.style.display='none'; ssItems=[]; ssIndex=-1; return; }
+      const safe = window.DOMPurify?.sanitize || (x=>x);
+      box.innerHTML = list.map((t,i)=>`<div class="search-sug-item" data-i="${i}"><span class="icon">🔎</span><span class="text">${safe(t)}</span></div>`).join('');
+      box.querySelectorAll('.search-sug-item').forEach(n=>{
+        n.onclick=()=>{ $('#searchInput').value = list[+n.dataset.i]; doSearch(false); box.style.display='none'; };
+      });
+      ssItems=list; ssIndex=0;
+      box.style.display='block';
+    }
+    $('#searchInput').addEventListener('input', showSearchSuggest);
+    $('#searchInput').addEventListener('focus', showSearchSuggest);
+    document.addEventListener('click', (e)=>{ if(!$('#inlineSearch').contains(e.target)) $('#searchSuggest').style.display='none'; });
+    $('#searchInput').addEventListener('keydown', (e)=>{
+      const box=$('#searchSuggest'); 
+      if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); doSearch(true); box.style.display='none'; return; } // Ctrl/Cmd+Enter => 바로 이동
+      if(box.style.display!=='block'||!ssItems.length) return;
+      if(e.key==='ArrowDown'){ e.preventDefault(); ssIndex=(ssIndex+1)%ssItems.length; box.querySelectorAll('.search-sug-item').forEach((n,i)=> n.classList.toggle('selected',i===ssIndex)); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); ssIndex=(ssIndex-1+ssItems.length)%ssItems.length; box.querySelectorAll('.search-sug-item').forEach((n,i)=> n.classList.toggle('selected',i===ssIndex)); }
+      else if(e.key==='Enter'){ e.preventDefault(); if(ssIndex>=0){ $('#searchInput').value=ssItems[ssIndex]; } doSearch(false); box.style.display='none'; }
+      else if(e.key==='Escape'){ box.style.display='none'; }
+    });
+
+    function renderOpenSuggestion(first){
+      const box=$('#searchJump'); if(!first){ box.style.display='none'; return; }
+      const safe = window.DOMPurify?.sanitize || (x=>x);
+      box.innerHTML = `
+        <span class="label">🔗 ${L.ui.jumpFirst}</span>
+        <span class="meta" title="${safe(first.title||first.link)}">${safe(first.title||first.link)}</span>
+        <div style="margin-left:auto;display:flex;gap:.4rem">
+          <button class="btn tiny" id="jumpGoBtn">${L.ui.jumpOpen}</button>
+          <button class="btn tiny" id="jumpInsertBtn">${L.ui.jumpInsert}</button>
+        </div>
+      `;
+      box.style.display='flex';
+      $('#jumpGoBtn').onclick = ()=>{ openExternal(first.link); box.style.display='none'; };
+      $('#jumpInsertBtn').onclick = ()=>{ insertSearchResult(first); box.style.display='none'; };
+    }
+
+    function insertSearchResult(first){
+      const safe = window.DOMPurify?.sanitize || (x=>x);
+      const q = $('#searchInput').value.replace(/\u00A0/g,' ').trim();
+      const h = '<blockquote><p>🔍 <a href="'+first.link+'" target="_blank" rel="noopener">'+(first.title?safe(first.title):q)+'</a></p><p>'+(first.snippet?safe(first.snippet):'')+'</p></blockquote><p></p>';
+      editor.model.change(function(w){ const frag=editor.data.toModel(editor.data.processor.toView(h)); w.insert(frag, editor.model.document.selection.getFirstPosition()); });
+      showToast(L.msg.searchOK);
+    }
+
+    async function doSearch(preferNavigate=false){
+      const q=$('#searchInput').value.replace(/\u00A0/g,' ').trim();
+      if(q.length<2) return showToast(L.msg.searchTooShort);
+      addHistory(q);
+      try{
+        const r=await fetch(apiUrl('search')+'?q='+encodeURIComponent(q));
+        const j=await r.json(); const first=(j.links||[])[0];
+        if(!first) return showToast(L.msg.noResults);
+        if(preferNavigate){ openExternal(first.link); return; }
+        // 제안 배너 표시
+        renderOpenSuggestion(first);
+      }catch(e){ showToast(L.msg.searchErr); }
+    }
+    $('#searchBtn').onclick = ()=>doSearch(false);
+
+    /* ===== Save menu ===== */
+    function titleFromContent(){
+      const plain=htmlToText(editor?.getData?.()||'');
+      const first=(plain.split(/\n|\./)[0]||'ThinkHelper').slice(0,80).replace(/[\\/:*?"<>|]/g,'_');
+      return first || 'ThinkHelper';
+    }
+    function positionSaveMenu(){ const b=$('#saveBtn'), m=$('#saveMenu'); const r=b.getBoundingClientRect(); m.style.left=r.left+'px'; m.style.top=(r.bottom+6)+'px'; }
+    function toggleSaveMenu(){ const m=$('#saveMenu'); if(m.style.display==='block'){m.style.display='none';return;} positionSaveMenu(); m.style.display='block';
+      const onDoc=function(e){ if(!m.contains(e.target) && e.target!==$('#saveBtn')){ m.style.display='none'; document.removeEventListener('click',onDoc);} };
+      setTimeout(function(){ document.addEventListener('click',onDoc); },0);
+    }
+    $('#saveBtn').onclick=toggleSaveMenu; window.addEventListener('resize',function(){ if($('#saveMenu').style.display==='block') positionSaveMenu(); });
+
+    /* HTML doc 생성 (PII 마스킹 옵션 적용) */
+    function buildStandaloneHtmlDoc({maskPII=true}={}){
+      const doc = document.implementation.createHTMLDocument(titleFromContent());
+      const head = doc.head;
+      head.appendChild(Object.assign(doc.createElement('meta'),{charset:'utf-8'}));
+      head.appendChild(Object.assign(doc.createElement('meta'),{name:'viewport',content:'width=device-width,initial-scale=1'}));
+      const style = doc.createElement('style');
+      style.textContent = 'body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6;padding:16px;color:#111}h2{margin:0 0 12px 0}blockquote{border-left:3px solid #ddd;margin:8px 0;padding:4px 8px;color:#555}a{color:#1565c0}.pii-pill-exp{display:inline-block;padding:0 .45em;border-radius:999px;border:1px dashed #f44336;background:#ffe7e7;color:#b71c1c}';
+      head.appendChild(style);
+      const h2 = doc.createElement('h2'); h2.textContent = titleFromContent(); doc.body.appendChild(h2);
+
+      const tmp = document.createElement('div'); tmp.innerHTML = editor?.getData?.()||'';
+      if(maskPII){
+        const walker=document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT, null);
+        const nodes=[]; let n; while((n=walker.nextNode())) nodes.push(n);
+        nodes.forEach(function(node){
+          const text=node.nodeValue||''; const hits=findPIIMatches(text); if(!hits.length) return;
+          const frag=document.createDocumentFragment(); let cur=0;
+          hits.forEach(function(h){
+            if(h.start>cur) frag.appendChild(doc.createTextNode(text.slice(cur,h.start)));
+            const pill=doc.createElement('span'); pill.setAttribute('class','pii-pill-exp'); pill.textContent='••••';
+            frag.appendChild(pill); cur=h.end;
+          });
+          if(cur<text.length) frag.appendChild(doc.createTextNode(text.slice(cur)));
+          if(node.parentNode) node.parentNode.replaceChild(frag,node);
+        });
+      }
+      Array.from(tmp.childNodes).forEach(ch=> doc.body.appendChild(doc.importNode(ch,true)));
+      return '<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+    }
+
+    async function ensureHtml2Pdf(){
+      if(window.html2pdf) return true;
+      return new Promise(res=>{
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
+        s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s);
+      });
+    }
+    function downloadBlob(blob,filename){
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0);
+    }
+
+    $('#saveMenuPdf').onclick = async function(){
+      $('#saveMenu').style.display='none';
+      const ok=await ensureHtml2Pdf(); if(!ok) return showToast(L.msg.pdfFail);
+      const wrap=document.createElement('div'); wrap.style.padding='16px';
+      const mask = (localStorage.getItem('pdfMask')!=='false'); // 기본 ON
+      const html = buildStandaloneHtmlDoc({maskPII:mask});
+      const parsed = new DOMParser().parseFromString(html,'text/html');
+      wrap.appendChild(parsed.body.cloneNode(true));
+      try{
+        await html2pdf().set({margin:10,filename:titleFromContent()+'.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(wrap).save();
+        addLocalDoc(titleFromContent()+' (PDF)', editor.getData()||''); showToast(L.msg.pdfOK);
+      }catch(e){ showToast(L.msg.pdfFail); }
+    };
+    $('#saveMenuDevice').onclick = function(){
+      $('#saveMenu').style.display='none';
+      const mask = (localStorage.getItem('pdfMask')!=='false');
+      const html=buildStandaloneHtmlDoc({maskPII:mask}); downloadBlob(new Blob([html],{type:'text/html'}), titleFromContent()+'.html');
+      addLocalDoc(titleFromContent()+' (HTML)', editor.getData()||''); showToast(L.msg.fileOK);
+    };
+
+    /* ===== Drive Export + Cloud draft ===== */
+    async function ensureAccess(){
+      if(accessToken && Date.now()<tokenExpiresAt) return accessToken;
+      return new Promise(function(resolve){
+        tokenClient.callback=function(resp){
+          if(resp && resp.access_token){ accessToken=resp.access_token; tokenExpiresAt=Date.now()+((resp.expires_in||3600)-60)*1000; resolve(accessToken); }
+          else{ showToast(L.msg.needLogin); resolve(null); }
+        };
+        tokenClient.requestAccessToken({prompt:''});
+      });
+    }
+    async function uploadToDrive(token, blob, fileName, toGoogleDoc){
+      const meta={name:fileName}; if(toGoogleDoc) meta.mimeType='application/vnd.google-apps.document';
+      const form=new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+      form.append('file', blob);
+      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:'Bearer '+token},body:form});
+      const j=await r.json(); return j.id||null;
+    }
+    $('#exportBtn').onclick = async function(){
+      $('#saveMenu').style.display='none';
+      const token=await ensureAccess(); if(!token) return showToast(L.msg.needLogin);
+      const htmlDoc=buildStandaloneHtmlDoc({maskPII:(localStorage.getItem('pdfMask')!=='false')});
+      const title=titleFromContent();
+      const id=await uploadToDrive(token, new Blob([htmlDoc],{type:'text/html'}), 'thinkhelper_'+title+'.html', true);
+      if(id){
+        const li=document.createElement('li'); const a=document.createElement('a');
+        a.href='https://docs.google.com/document/d/'+id+'/edit'; a.target='_blank'; a.rel='noopener'; a.textContent='📄 Drive: '+title;
+        li.appendChild(a); $('#docList').prepend(li);
+        showToast(L.msg.exportOK);
+      }else{ showToast(L.msg.exportFail); }
+    };
+
+    async function getAppDataFileIdByName(name){
+      const token=await ensureAccess(); if(!token) return null;
+      const q=encodeURIComponent("name='"+name+"' and 'appDataFolder' in parents and trashed=false");
+      const r=await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&spaces=appDataFolder&fields=files(id,name)',{headers:{Authorization:'Bearer '+token}});
+      const j=await r.json(); return (j.files && j.files[0] && j.files[0].id) ? j.files[0].id : null;
+    }
+    async function createAppDataFile(name,json){
+      const token=await ensureAccess(); if(!token) return null;
+      const meta={name:name,parents:['appDataFolder'],mimeType:'application/json'};
+      const form=new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+      form.append('file', new Blob([JSON.stringify(json)], {type:'application/json'}));
+      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{Authorization:'Bearer '+token},body:form});
+      const j=await r.json(); return j.id||null;
+    }
+    async function updateAppDataFile(fileId,json){
+      const token=await ensureAccess(); if(!token) return false;
+      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(json)});
+      return r.ok;
+    }
+    async function readAppDataFile(fileId){
+      const token=await ensureAccess(); if(!token) return null;
+      const r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{Authorization:'Bearer '+token}});
+      if(!r.ok) return null; return r.json();
+    }
+    const saveCloudDraftDebounced = deb(async function(){
+      if(!isLoggedIn) return;
+      try{
+        if(!cloudDraftFileId){
+          cloudDraftFileId = await getAppDataFileIdByName('thinkhelper_draft.json');
+          if(!cloudDraftFileId){
+            cloudDraftFileId = await createAppDataFile('thinkhelper_draft.json',{title:'Cloud Draft',html:'',updatedAt:Date.now()});
+          }
+        }
+        const payload={title:titleFromContent(), html:editor?.getData?.()||'', updatedAt:Date.now()};
+        await updateAppDataFile(cloudDraftFileId, payload);
+        renderDocList(payload);
+      }catch(e){ console.warn('saveCloudDraft error',e); }
+    }, 1200);
+
+    async function loadCloudDraft(){
+      try{
+        cloudDraftFileId = await getAppDataFileIdByName('thinkhelper_draft.json');
+        if(!cloudDraftFileId){
+          cloudDraftFileId = await createAppDataFile('thinkhelper_draft.json',{title:'Cloud Draft',html:'',updatedAt:Date.now()});
+        }
+        const data = await readAppDataFile(cloudDraftFileId);
+        if(data && data.html){
+          const currentPlain = htmlToText(editor.getData()||'');
+          if(!currentPlain){ editor.setData(data.html||''); showToast(L.msg.cloudLoaded); }
+        }
+        renderDocList(data||{title:'Cloud Draft',updatedAt:Date.now(),html:editor.getData()});
+      }catch(e){ console.warn('loadCloudDraft error',e); }
+    }
+
+    /* ===== New Doc ===== */
+    $('#newDocBtn').onclick=function(){ if(editor && editor.setData){ editor.setData(''); } try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} showToast(L.msg.newDoc); };
+    if($('#newDocCTA')){ $('#newDocCTA').addEventListener('click',()=>$('#newDocBtn').click()); }
+
+    /* ===== Consent ===== */
+    function updateConsentBadge(){
+      const choice=localStorage.getItem('consent-ok'); const b=$('#consentBadge');
+      if(choice==='0'){ b.textContent=L.ui.badgeOff; b.classList.add('off'); }
+      else if(choice==='1'){ b.textContent=L.ui.badgeOn; b.classList.remove('off'); }
+      else { b.textContent=L.ui.badgeWait; b.classList.remove('off'); }
+    }
+    function applyConsentEffect(){
+      const choice=localStorage.getItem('consent-ok');
+      if(choice==='0'){
+        enableSuggestions=false;
+        localStorage.setItem('enableSuggestions','false');
+        $('#suggestions').style.display='none';
+      }
+      updateConsentBadge();
+    }
+    (function initConsent(){
+      const choice=localStorage.getItem('consent-ok');
+      if(choice===null){ document.querySelector('#consent').style.display='flex'; }
+      else{ applyConsentEffect(); }
+      $('#agreeBtn').onclick=function(){
+        localStorage.setItem('consent-ok','1');
+        document.querySelector('#consent').style.display='none';
+        enableSuggestions = (localStorage.getItem('enableSuggestions')!=='false');
+        applyConsentEffect();
+        showToast(L.msg.consentSaved);
+      };
+      $('#declineBtn').onclick=function(){
+        localStorage.setItem('consent-ok','0');
+        document.querySelector('#consent').style.display='none';
+        applyConsentEffect();
+        showToast(L.msg.consentOff);
+      };
+      $('#consentClose').onclick=function(){ document.querySelector('#consent').style.display='none'; };
+    })();
+
+    /* ===== GIS OAuth ===== */
+    function setSignedInUI(signed){
+      isLoggedIn=!!signed;
+      $('#authBtn').textContent = signed ? L.ui.authLogout : L.ui.authLogin;
+      $('#authBtn').onclick = signed ? logout : login;
+      $('#loginDisplay').textContent = (signed && userProfile) ? (userProfile.name || userProfile.email || '') : '';
+    }
+    async function fetchUserInfo(){
+      try{
+        const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}});
+        if(r.ok){ userProfile=await r.json(); }
+      }catch(e){}
+    }
+    function initOAuth(){
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID, scope: OAUTH_SCOPES,
+        callback: async function(resp){
+          if(resp && resp.access_token){
+            accessToken=resp.access_token; tokenExpiresAt=Date.now()+((resp.expires_in||3600)-60)*1000;
+            await fetchUserInfo(); setSignedInUI(true); showToast(L.msg.loginOK); await loadCloudDraft();
+          }else{
+            showToast(L.msg.loginFail);
+          }
+        }
+      });
+      setSignedInUI(false);
+    }
+    function login(){ if(tokenClient){ tokenClient.requestAccessToken({prompt:'consent'}); } }
+    async function logout(){
+      try{
+        if(accessToken){
+          await fetch('https://oauth2.googleapis.com/revoke?token='+encodeURIComponent(accessToken),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+        }
+      }catch(e){}
+      accessToken=null; tokenExpiresAt=0; userProfile=null; setSignedInUI(false); showToast(L.msg.logoutOK);
+    }
+    function ensureGISLoaded(cb,tries){
+      const t=typeof tries==='number'?tries:0;
+      if(window.google?.accounts?.oauth2){ cb(); }
+      else if(t<50){ setTimeout(()=>ensureGISLoaded(cb,t+1),120); }
+    }
+    (function initOAuthSafe(){ if(CLIENT_ID){ ensureGISLoaded(initOAuth,0); } })();
+
+    /* ===== Gemini Chat(샘플) ===== */
+    function appendChat(role,text){
+      const d=document.createElement('div'); d.className='chatMsg '+(role==='user'?'user':'ai'); d.textContent=text;
+      $('#chatLog').appendChild(d); $('#chatLog').scrollTop=$('#chatLog').scrollHeight;
+    }
+    async function sendChat(){
+      const v=$('#chatInput').value.trim(); if(!v) return; appendChat('user',v); $('#chatInput').value='';
+      let reply='';
+      try{
+        const r=await fetch(apiUrl('gpt'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:v})});
+        const j=r.ok?await r.json():null; reply=(j && j.response && j.response.text) ? j.response.text : (j && j.text ? j.text : '');
+      }catch(e){}
+      if(!reply){ reply='…'; }
+      appendChat('ai',reply);
+    }
+    $('#chatBtn').onclick=function(){ $('#chatPanel').style.display='flex'; $('#chatInput').focus(); };
+    $('#chatClose').onclick=function(){ $('#chatPanel').style.display='none'; };
+    $('#chatFullscreenToggle').onclick=function(){ $('#chatPanel').classList.toggle('fullscreen'); };
+    $('#chatInput').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } });
+
+    /* ===== 언어 자동/모바일 동기화 ===== */
+    async function detectLangByIP(){
+      try{
+        const r = await fetch('https://ipapi.co/json/');
+        if(!r.ok) throw new Error('ipapi failed');
+        const j = await r.json();
+        const cc = (j.country_code||'').toUpperCase();
+        if(cc==='KR') return 'ko';
+        if(cc==='JP') return 'ja';
+        return 'en';
+      }catch(e){
+        const nav=(navigator.language||'en').slice(0,2).toLowerCase();
+        return ['ko','en','ja'].includes(nav)?nav:'en';
+      }
+    }
+    document.addEventListener('DOMContentLoaded', async function(){
+      const langSource = localStorage.getItem('langSource'); // 'user' | 'auto' | null
+      if(langSource==='user' && localStorage.getItem('lang')){
+        applyLang(localStorage.getItem('lang'));
+      }else{
+        const detected = await detectLangByIP();
+        applyLang(detected);
+        localStorage.setItem('langSource','auto');
+      }
+      ['#languageSelect','#languageSelectMobile'].forEach(sel=>{
+        const el=$(sel); if(!el) return;
+        el.addEventListener('change', function(e){
+          localStorage.setItem('langSource','user');
+          applyLang(e.target.value || 'ko');
+        });
+      });
+    });
+
+    /* ===== Save draft before unload ===== */
+    window.addEventListener('beforeunload', function(){
+      try{ localStorage.setItem(DRAFT_KEY, editor?.getData?.()||''); }catch(e){}
+    });
+
+    /* ===== reCAPTCHA callback (요청 코드 유지) ===== */
+    function onSubmit(token) {
+      const form = document.getElementById("demo-form");
+      if(form){ form.submit(); }
+      showToast('reCAPTCHA verified');
+    }
+    window.onSubmit = onSubmit;
   </script>
 </body>
-</html
+</html>
