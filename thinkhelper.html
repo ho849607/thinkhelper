@@ -1,59 +1,17 @@
-# We'll build a **no-API** GitHub Pages package that strips or disables Gemini/own-API usage.
-# What this script does:
-# 1) Splits the provided single-file HTML into index.html + assets/styles.css + assets/app.js
-# 2) Removes sensitive/abusable bits (Gemini API key meta, GA/reCAPTCHA/GIS/Pay/Paddle scripts)
-# 3) Tightens CSP to a minimal set for the demo
-# 4) Patches JS to disable chat/search backend calls, rely only on client features,
-#    and avoid any calls to ipapi/Drive/GIS/etc.
-# 5) Produces README and manifest, then zips for easy download.
-
-import os, re, json, textwrap, shutil, pathlib, zipfile
-
-root = "/mnt/data/thinkhelper-pages-noapi"
-assets_dir = os.path.join(root, "assets")
-os.makedirs(assets_dir, exist_ok=True)
-
-original_html = r"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-
-  <!-- CSP -->
-  <meta http-equiv="Content-Security-Policy"
-        content="
-        default-src 'self';
-        script-src 'self' https://accounts.google.com https://www.gstatic.com https://cdn.ckeditor.com https://apis.google.com https://cdn.jsdelivr.net https://ipapi.co https://pay.google.com https://cdn.paddle.com https://www.googletagmanager.com https://www.google-analytics.com https://www.google.com 'unsafe-inline' 'unsafe-eval';
-        frame-src https://accounts.google.com/gsi/ https://pay.google.com https://checkout.paddle.com https://*.paddle.com https://www.googletagmanager.com https://www.google.com;
-        connect-src 'self' https://accounts.google.com/gsi/ https://ipapi.co https://api-w7dmw4n5zq-du.a.run.app https://www.googleapis.com https://oauth2.googleapis.com https://generativelanguage.googleapis.com https://pay.google.com https://api.paddle.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com wss: ws:;
-        style-src 'self' 'unsafe-inline' https://cdn.ckeditor.com;
-        img-src 'self' data: https://*.paddle.com https://www.google-analytics.com;
-        object-src 'none';
-        "/>
-
+  <meta name="color-scheme" content="light dark"/>
   <meta http-equiv="Permissions-Policy" content="identity-credentials-get=()"/>
+  <title>ThinkHelper 3.3 (Mobile quick actions + Topic AI cache)</title>
 
-  <title>ThinkHelper 3.1</title>
-  <link rel="icon" href="data:,"/>
-  <link rel="manifest" href="manifest.json"/>
-
-  <!-- Google reCAPTCHA Enterprise -->
-  <script src="https://www.google.com/recaptcha/enterprise.js?render=6LdrQpwrAAAAAEfS6GhTaZwnTY5MpC69IEeRNDIT"></script>
-
-  <!-- (옵션) 결제 스크립트 -->
-  <script async src="https://pay.google.com/gp/p/js/pay.js"></script>
-  <script src="https://cdn.paddle.com/paddle/v2/paddle.js" async></script>
-
-  <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <!-- Editor & sanitize -->
-  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js" async></script>
-
-  <!-- OAuth/Gemini API Key -->
-  <meta name="google-signin_client_id" content="609565568467-cmagnrdngsojg5q62ljf5gi8ljk7moac.apps.googleusercontent.com"/>
-  <meta name="google-api-key" content="AIzaSyDaBLLoSo5zwFhl72L9R7VeQqa1eybwqKk"/>
+  <!-- 파비콘/매니페스트: 404 방지용 데이터 URL -->
+  <link rel="icon" type="image/svg+xml"
+        href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%231976d2"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="34" fill="white">T</text></svg>'/>
+  <link rel="manifest"
+        href='data:application/manifest+json,{"name":"ThinkHelper","short_name":"ThinkHelper","start_url":".","display":"standalone","background_color":"#1976d2","theme_color":"#1976d2","icons":[]}'/>
 
   <!-- GA4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-9PM41E1HFW"></script>
@@ -62,6 +20,10 @@ original_html = r"""<!DOCTYPE html>
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date()); gtag('config', 'G-9PM41E1HFW');
   </script>
+
+  <!-- 필수 라이브러리(CDN) -->
+  <script src="https://cdn.ckeditor.com/ckeditor5/41.3.1/classic/ckeditor.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
 
   <style>
     :root{
@@ -78,17 +40,14 @@ original_html = r"""<!DOCTYPE html>
     }
     *{box-sizing:border-box;margin:0;padding:0}
     body{min-height:100vh;display:flex;flex-direction:column;font-family:-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif;background:var(--bg);color:var(--fg);transition:background .3s,color .3s}
-
     header{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--primary);color:var(--text-light);position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(255,255,255,.2)}
     #logoWrap{display:flex;align-items:center;gap:.6rem}
     #logoWrap h1{font-size:1.05rem;font-weight:700}
     .toolbar{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
     .btn{padding:.34rem .72rem;border:none;border-radius:10px;background:var(--box);color:var(--primary);cursor:pointer;font-size:.9rem;transition:background .2s}
-    .btn:hover{background:var(--primary-light)}
+    .btn:hover{background:var(--primary-hover)}
     .btn.tiny{padding:.24rem .5rem;font-size:.84rem}
     select{padding:.34rem;border:none;border-radius:10px;background:var(--box);color:var(--primary);font-size:.9rem}
-
-    /* 데스크탑: 햄버거 숨김 / 모바일(≤860px): 햄버거 표시 */
     #sidebarToggle{display:none}
     @media (max-width:860px){
       #sidebarToggle{display:inline-flex}
@@ -96,7 +55,6 @@ original_html = r"""<!DOCTYPE html>
       #menuBtn{display:inline-flex}
     }
     #menuBtn{display:none}
-
     .badge{display:inline-block;padding:.16rem .5rem;border-radius:999px;font-size:.78rem;background:rgba(255,255,255,.25);color:#fff}
     .badge.off{background:#d32f2f}
 
@@ -124,7 +82,6 @@ original_html = r"""<!DOCTYPE html>
     .ck-content a{color:var(--primary-hover)} body.dark .ck-content a{color:#90caf9}
     #charCount{display:none}
 
-    /* 에디터 Quick Actions (복사만) */
     #quickActions{display:flex;gap:.5rem;margin:.6rem 0 .2rem 0}
     #quickActions .btn{padding:.28rem .6rem;font-size:.85rem}
 
@@ -133,7 +90,6 @@ original_html = r"""<!DOCTYPE html>
     #inlineSearch button{border-radius:12px}
     #inlineSearch input::placeholder{color:#8a93a3} body.dark #inlineSearch input::placeholder{color:#b8c1d4}
 
-    /* 검색 자동 제안 */
     #searchSuggest{
       position:absolute; top:100%; left:0; right:0; margin-top:6px;
       background:var(--sug-bg); color:var(--sug-text); border:1px solid var(--border);
@@ -146,7 +102,6 @@ original_html = r"""<!DOCTYPE html>
     .search-sug-item .icon{opacity:.8}
     .search-sug-item .text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-    /* 검색 직행 제안 배너 */
     #searchJump{
       margin-top:8px; display:none; align-items:center; gap:.5rem;
       background:var(--sug-bg); color:var(--sug-text);
@@ -157,26 +112,19 @@ original_html = r"""<!DOCTYPE html>
     #searchJump .meta{opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
     @media (max-width:860px){ #searchJump .meta{max-width:55%} }
 
-    /* 입력 제안(에디터 칩) */
     #suggestions{
-      position:fixed;z-index:99999;max-height:240px;overflow:auto;min-width:260px;
+      position:fixed;z-index:99999;max-height:260px;overflow:auto;min-width:280px;max-width:min(92vw,680px);
       background:var(--sug-bg);border:1px solid var(--border);border-radius:12px;padding:.25rem 0;
       box-shadow:0 12px 28px rgba(0,0,0,.22);font-size:.96rem;display:none;-webkit-overflow-scrolling:touch;
     }
-    .suggestion-item{padding:.55rem .9rem;border-bottom:1px dashed var(--border);cursor:pointer;color:var(--sug-text);white-space:nowrap}
+    .suggestion-item{padding:.65rem .95rem;border-bottom:1px dashed var(--border);cursor:pointer;color:var(--sug-text);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .suggestion-item:last-child{border-bottom:none}
     .suggestion-item:hover,.suggestion-item.selected{background:var(--sug-hover)}
     .suggestion-item.selected{outline:2px solid var(--primary)}
 
-    /* PII pill */
-    .ck-content .pii-pill{
-      background:var(--pill-bg); border:1px dashed var(--pill-border);
-      color:transparent; border-radius:999px; padding:0 .5em; user-select:none;
-      box-decoration-break:clone;
-    }
-    .ck-content .pii-pill::after{content:"••••"; color:var(--pill-dot); letter-spacing:.12em;}
+    .ck-content .pii-pill{ background:var(--pill-bg); border:1px dashed var(--pill-border); color:transparent; border-radius:999px; padding:0 .5em; user-select:none; box-decoration-break:clone; }
+    .ck-content .pii-pill::after{ content:"••••"; color:var(--pill-dot); letter-spacing:.12em; }
 
-    /* 저장 메뉴 */
     #saveMenu{position:fixed;display:none;z-index:1600;min-width:240px;background:var(--box);color:var(--fg);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.22)}
     #saveMenu button{display:block;width:100%;border:0;background:transparent;color:#0d1b2a;font-weight:700;font-size:.95rem;padding:.75rem 1rem;text-align:left;letter-spacing:.01em;border-bottom:1px dashed var(--border)}
     #saveMenu button:last-child{border-bottom:none}
@@ -185,29 +133,26 @@ original_html = r"""<!DOCTYPE html>
     #saveMenu button:hover,#saveMenu button:focus{background:var(--primary);color:#fff}
     #saveMenu button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 
-    /* 공통 모달 */
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:2000}
     .modal .card{width:min(92vw,760px);max-height:85vh;overflow:auto;background:var(--box);color:var(--fg);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 48px rgba(0,0,0,.35)}
     .modal .card header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
     .modal .card .content{padding:14px 16px}
     .modal .close{border:none;background:transparent;font-size:20px;cursor:pointer;color:inherit}
 
-    /* 드로어(모바일) */
     #drawer{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:flex-end;z-index:1600}
     #drawer .sheet{width:min(92vw,380px);height:100%;background:var(--box);color:var(--fg);border-left:1px solid var(--border);padding:1rem;display:flex;flex-direction:column;gap:.8rem}
     #drawer .row{display:flex;gap:.5rem;align-items:center}
     #drawer .row select, #drawer .row button, #drawer .row input{flex:1}
     #helpInlineMobile{font-size:.92rem;line-height:1.6;border-top:1px solid var(--border);padding-top:.6rem}
 
-    /* 숨길 요소들 */
-    .grecaptcha-badge,
-    .site-error,
-    .error,
-    small[style*="color:red"],
-    .ck.ck-notification__message{display:none !important;}
+    .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    .qa-grid .btn{width:100%}
+
+    .grecaptcha-badge, .site-error, .error,
+    small[style*="color:red"], .ck.ck-notification__message{display:none !important;}
+
     footer#legal{font-size:.8rem;opacity:.7;padding:.6rem 1rem;background:transparent;color:inherit}
 
-    /* Gemini Chat */
     #chatPanel{
       position:fixed; right:16px; bottom:16px; width:420px; height:520px;
       display:none; flex-direction:column;
@@ -222,7 +167,6 @@ original_html = r"""<!DOCTYPE html>
     .chatMsg.user{align-self:flex-end; background:var(--primary-light)}
     .chatMsg.ai{align-self:flex-start; background:#eceff1}
     #chatInput{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin:10px}
-
     @media (max-width:860px){
       #chatPanel{ left:8px; right:8px; bottom:10px; width:auto; height:65vh; }
     }
@@ -232,24 +176,21 @@ original_html = r"""<!DOCTYPE html>
   <header>
     <div id="logoWrap">
       <button class="btn tiny" id="sidebarToggle" title="사이드바" aria-label="사이드바">☰</button>
-      <h1 id="appTitle">ThinkHelper 3.1</h1>
+      <h1 id="appTitle">ThinkHelper 3.3</h1>
     </div>
     <div class="toolbar">
       <span id="loginDisplay" style="color:#fff;margin-right:.2rem"></span>
       <span id="consentBadge" class="badge" title="개인정보 동의 상태"></span>
       <button class="btn" id="authBtn">Google 로그인</button>
 
-      <!-- 데스크탑 언어/모드 -->
       <select id="languageSelect" aria-label="Language">
-        <option value="ko">한국어</option>
-        <option value="en">English</option>
-        <option value="ja">日本語</option>
+        <option value="ko">한국어</option><option value="en">English</option>
+        <option value="ja">日本語</option><option value="fr">Français</option>
+        <option value="vi">Tiếng Việt</option>
       </select>
       <select id="modeSelect" aria-label="Mode">
-        <option value="basic">🛠 Basic</option>
-        <option value="journalist">📰 Journalist</option>
-        <option value="research">📑 Research</option>
-        <option value="law">⚖️ Legal</option>
+        <option value="basic">🛠 Basic</option><option value="journalist">📰 Journalist</option>
+        <option value="research">📑 Research</option><option value="law">⚖️ Legal</option>
         <option value="dev">💻 Developer</option>
       </select>
 
@@ -259,13 +200,11 @@ original_html = r"""<!DOCTYPE html>
       <button class="btn" id="settingsBtn">⚙️ 설정</button>
       <button class="btn" id="helpBtn">❓ 도움말</button>
       <button class="btn" id="shareNaverBtn">네이버 블로그</button>
-      <button class="btn" id="shareTwitterBtn">트위터</button>
+      <button class="btn" id="shareTwitterBtn">X (Twitter)</button>
       <button class="btn g-recaptcha" id="recaptchaBtn"
         data-sitekey="6LdrQpwrAAAAAEfS6GhTaZwnTY5MpC69IEeRNDIT"
         data-callback="onSubmit"
         data-action="submit">reCAPTCHA</button>
-
-      <!-- 모바일 햄버거 -->
       <button class="btn" id="menuBtn" aria-label="메뉴">☰</button>
     </div>
 
@@ -291,11 +230,7 @@ original_html = r"""<!DOCTYPE html>
     </aside>
 
     <section id="wrap">
-      <!-- 에디터 Quick Actions (복사만) -->
-      <div id="quickActions">
-        <button class="btn tiny" id="copyBtn">📋 Copy (Ctrl/Cmd+C)</button>
-      </div>
-
+      <div id="quickActions"><button class="btn tiny" id="copyBtn">📋 Copy (Ctrl/Cmd+C)</button></div>
       <div id="editor" data-placeholder="여기에 글을 입력하세요..."></div>
       <div id="charCount">0 자</div>
 
@@ -303,61 +238,52 @@ original_html = r"""<!DOCTYPE html>
         <input id="searchInput" placeholder="검색 (/ 또는 Ctrl+K)" autocomplete="off"/>
         <button class="btn" id="searchBtn">🔍 <span id="searchBtnText">검색</span></button>
         <div id="searchSuggest"></div>
-        <!-- 검색 직행 제안 배너 -->
         <div id="searchJump" role="region" aria-live="polite"></div>
       </div>
 
-      <!-- 입력 중 의도 제안 칩 -->
       <div id="suggestions"></div>
     </section>
   </main>
 
-  <!-- 하단 고지문 -->
   <footer id="legal">
-    This site is protected by reCAPTCHA and the Google
-    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
-    <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
+    <div>
+      This site is protected by reCAPTCHA and the Google
+      <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+      <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
+    </div>
+    <div id="aiNotice" style="margin-top:.35rem;"></div>
   </footer>
 
-  <!-- 모바일/아이패드 드로어 -->
+  <!-- Drawer -->
   <div id="drawer" aria-hidden="true">
     <div class="sheet" role="dialog" aria-label="Quick Menu">
+      <div class="qa-grid" style="margin-bottom:.2rem">
+        <button class="btn" id="settingsBtnMobileQA">⚙️ 설정</button>
+        <button class="btn" id="shareNaverBtnMobileQA">네이버 블로그</button>
+        <button class="btn" id="shareTwitterBtnMobileQA">X (Twitter)</button>
+        <button class="btn" id="themeBtnMobileQA">🌙 다크모드</button>
+        <button class="btn" id="chatBtnMobileQA">💬 채팅</button>
+      </div>
       <div class="row">
         <label style="min-width:88px" id="labelLang">Language</label>
         <select id="languageSelectMobile">
-          <option value="ko">한국어</option>
-          <option value="en">English</option>
-          <option value="ja">日本語</option>
+          <option value="ko">한국어</option><option value="en">English</option>
+          <option value="ja">日本語</option><option value="fr">Français</option>
+          <option value="vi">Tiếng Việt</option>
         </select>
       </div>
       <div class="row">
         <label style="min-width:88px" id="labelMode">Mode</label>
         <select id="modeSelectMobile">
-          <option value="basic">🛠 Basic</option>
-          <option value="journalist">📰 Journalist</option>
-          <option value="research">📑 Research</option>
-          <option value="law">⚖️ Legal</option>
+          <option value="basic">🛠 Basic</option><option value="journalist">📰 Journalist</option>
+          <option value="research">📑 Research</option><option value="law">⚖️ Legal</option>
           <option value="dev">💻 Developer</option>
         </select>
       </div>
-      <div class="row">
-        <button class="btn" id="themeBtnMobile">🌙 테마</button>
-        <button class="btn" id="settingsBtnMobile">⚙️ 설정</button>
-      </div>
-      <div class="row">
-        <button class="btn" id="shareNaverBtnMobile">네이버 블로그</button>
-        <button class="btn" id="shareTwitterBtnMobile">트위터</button>
-      </div>
-
-      <!-- 모바일 도움말 인라인 -->
       <div id="helpInlineMobile"></div>
-
       <button class="btn" id="drawerClose" style="margin-top:auto">닫기</button>
     </div>
   </div>
-
-  <!-- reCAPTCHA 데모 폼(요청 코드 유지) -->
-  <form id="demo-form" action="#" method="post" style="display:none"></form>
 
   <!-- 동의 모달 -->
   <div id="consent" class="modal" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
@@ -385,18 +311,691 @@ original_html = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- 도움말 모달(데스크탑용) -->
+  <!-- 도움말 모달 -->
   <div id="helpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="card">
       <header>
         <h3 id="helpTitle">도움말</h3>
-      <button class="close" data-close="#helpModal" aria-label="닫기">✕</button>
+        <button class="close" data-close="#helpModal" aria-label="닫기">✕</button>
       </header>
       <div class="content" id="helpContent"></div>
     </div>
   </div>
 
-  <!-- 설정 모달 -->
+  <!-- GPT-Nano Chat -->
+  <div id="chatPanel" role="dialog" aria-label="GPT-Nano Chat">
+    <div id="chatHeader">
+      <span id="chatTitle">💬 GPT-Nano Chat</span>
+      <div class="right">
+        <button class="btn tiny" id="chatFullscreenToggle">⤢ Full</button>
+        <button class="btn tiny" id="chatClose">Close</button>
+      </div>
+    </div>
+    <div id="chatLog"></div>
+    <input id="chatInput" placeholder="Enter로 전송" aria-label="Chat Input"/>
+  </div>
+
+  <form id="demo-form" action="#" method="post" style="display:none"></form>
+
+  <script>
+  'use strict';
+
+  /* ===== helpers ===== */
+  const $ = (sel)=>document.querySelector(sel);
+  function apiUrl(path){ const p=(path||'').startsWith('/')?path:'/'+(path||''); return p.startsWith('/api/')?p:'/api'+p; }
+  function isOnline(){ try { return navigator.onLine; } catch(_) { return true; } }
+  const htmlToText = (html='')=>{ const tmp=document.createElement('div'); tmp.innerHTML=html; const t=(tmp.textContent||'').replace(/\u00A0/g,' '); return t.replace(/\s+/g,' ').trim(); };
+
+  /* ===== i18n ===== */
+  const PRIV_LINK='https://docs.google.com/document/d/1kmFzmp3ddJOKOp1TPsvsNzAuBKt6M0Vm0N_G5BIOZEE/edit?usp=sharing';
+  const TOS_LINK='https://docs.google.com/document/d/1TLZ2m52s1mAd8BPzXDBQuXF6QZ_hLDZOyX6Y8TKALnE/edit?usp=sharing';
+
+  const I18N = {
+    ko:{ui:{authLogin:'Google 로그인',authLogout:'로그아웃',save:'저장',chat:'채팅',theme:'테마',settings:'설정',help:'도움말',naver:'네이버 블로그',twitter:'X (Twitter)',documents:'문서 목록',chats:'채팅 기록',newDoc:'➕ 새 문서',newDocCTA:'+ 새 문서',empty:'아직 저장된 문서가 없습니다.',searchPH:'검색 (/ 또는 Ctrl+K)',searchBtn:'검색',savePdf:'PDF로 저장',saveHtml:'기기에 저장하기(HTML)',exportDrive:'Drive로 내보내기(Google Docs)',drawerClose:'닫기',drawerLang:'Language',drawerMode:'Mode',consentTitle:'개인정보 수집·이용 안내',consentBody:'You can use the service without signing in. ...',privacy:'개인정보 처리방침 자세히 보기',tos:'서비스 이용약관 자세히 보기',agree:'동의',decline:'거부',badgeOn:'추천 ON',badgeOff:'추천 OFF',badgeWait:'동의 대기',helpTitle:'도움말',helpHtml:`<ul style="line-height:1.8;margin-left:1rem"><li>문서 작성·요약</li><li>웹 검색 결과 삽입</li><li>PII 마스킹</li><li>복사 버튼 / 붙여넣기 단축키</li><li><a href="${PRIV_LINK}" target="_blank" rel="noopener">개인정보 처리방침</a> · <a href="${TOS_LINK}" target="_blank" rel="noopener">이용약관</a></li></ul>`,settingsTitle:'설정',labelSuggest:'추천 에디터 사용',labelInstant:'모바일 즉시 제안(저사양 비활성 권장)',labelPdfMask:'PDF 저장 시 마스킹 적용',labelPiiHighlight:'에디터에서 PII 하이라이트 표시',reopenConsent:'개인정보 동의 다시 설정',toggleTheme:'테마 토글',chatTitle:'💬 GPT-Nano Chat',chatFull:'⤢ Full',chatClose:'Close',chatPH:'Enter로 전송',jumpFirst:'첫 결과',jumpOpen:'바로 이동',jumpInsert:'에디터에 삽입',aiNotice:'⚠️ 인공지능 모델은 실수할 수 있습니다. 중요한 정보는 다시 한 번 확인하세요.'},msg:{insertDone:'삽입되었습니다.',searchTooShort:'검색어를 2자 이상 입력하세요.',noResults:'검색 결과가 없습니다.',searchOK:'검색 결과를 가져왔어요.',searchErr:'검색 중 오류가 발생했어요.',newDoc:'새 문서를 시작합니다.',loginOK:'로그인 성공',loginFail:'로그인 실패',needLogin:'먼저 로그인해 주세요.',logoutOK:'로그아웃되었습니다.',pdfFail:'PDF 저장 실패',pdfOK:'✅ PDF로 저장했어요',fileOK:'✅ 파일 다운로드를 시작했어요',exportFail:'내보내기 실패',exportOK:'✅ Drive로 내보내기 완료',cloudLoaded:'☁️ 클라우드 초안을 불러왔어요.',docLoaded:'문서를 불러왔어요.',consentSaved:'동의가 저장되었습니다.',consentOff:'추천 에디터가 비활성화됩니다.',attachOK:'첨부를 삽입했어요.',popupBlocked:'팝업이 차단되어 링크를 복사했어요!'}},
+    en:{ui:{authLogin:'Sign in with Google',authLogout:'Sign out',save:'Save',chat:'Chat',theme:'Theme',settings:'Settings',help:'Help',naver:'Naver Blog',twitter:'X (Twitter)',documents:'Documents',chats:'Chat History',newDoc:'➕ New document',newDocCTA:'+ New document',empty:'No documents yet.',searchPH:'Search (/ or Ctrl+K)',searchBtn:'Search',savePdf:'Save as PDF',saveHtml:'Save to device (HTML)',exportDrive:'Export to Drive (Google Docs)',drawerClose:'Close',drawerLang:'Language',drawerMode:'Mode',consentTitle:'Privacy Notice',consentBody:'You can use the service without signing in. ...',privacy:'View Privacy Policy',tos:'View Terms of Service',agree:'Agree',decline:'Decline',badgeOn:'Suggest ON',badgeOff:'Suggest OFF',badgeWait:'Pending',helpTitle:'Help',helpHtml:`<ul style="line-height:1.8;margin-left:1rem"><li>Draft & summarize</li><li>Insert web results</li><li>PII masking</li><li>Copy / paste shortcuts</li><li><a href="${PRIV_LINK}" target="_blank" rel="noopener">Privacy Policy</a> · <a href="${TOS_LINK}" target="_blank" rel="noopener">Terms of Service</a></li></ul>`,settingsTitle:'Settings',labelSuggest:'Use suggestion editor',labelInstant:'Instant suggestions (mobile)',labelPdfMask:'Apply masking when saving PDF',labelPiiHighlight:'Show PII highlight in editor',reopenConsent:'Review privacy consent',toggleTheme:'Toggle theme',chatTitle:'💬 GPT-Nano Chat',chatFull:'⤢ Full',chatClose:'Close',chatPH:'Press Enter to send',jumpFirst:'Top result',jumpOpen:'Open now',jumpInsert:'Insert to editor',aiNotice:'⚠️ AI models can make mistakes. Please double-check important information.'},msg:{insertDone:'Inserted.',searchTooShort:'Type at least 2 characters.',noResults:'No results.',searchOK:'Inserted a search result.',searchErr:'Search failed.',newDoc:'Starting a new document.',loginOK:'Signed in.',loginFail:'Failed to handle sign-in.',needLogin:'Please sign in first.',logoutOK:'Signed out.',pdfFail:'Failed to create PDF — please try again.',pdfOK:'✅ Saved as PDF',fileOK:'✅ Started downloading the file',exportFail:'Export failed — please try again.',exportOK:'✅ Exported to Google Docs',cloudLoaded:'☁️ Loaded your cloud draft.',docLoaded:'Loaded the document.',consentSaved:'Consent saved.',consentOff:'Suggestion editor will be disabled.',attachOK:'Attachment inserted.',popupBlocked:'Popup blocked; copied the link instead!'}},
+    ja:{ui:{authLogin:'Googleでログイン',authLogout:'ログアウト',save:'保存',chat:'チャット',theme:'テーマ',settings:'設定',help:'ヘルプ',naver:'ネイバーブログ',twitter:'X(旧Twitter)',documents:'ドキュメント',chats:'チャット履歴',newDoc:'➕ 新規ドキュメント',newDocCTA:'+ 新規ドキュメント',empty:'まだ保存された文書はありません。',searchPH:'検索 (/ または Ctrl+K)',searchBtn:'検索',savePdf:'PDFで保存',saveHtml:'端末に保存(HTML)',exportDrive:'Driveにエクスポート(Google Docs)',drawerClose:'閉じる',drawerLang:'Language',drawerMode:'Mode',consentTitle:'個人情報の取扱い',consentBody:'サインインなしでも利用できますが…',privacy:'プライバシーポリシー',tos:'利用規約',agree:'同意',decline:'拒否',badgeOn:'提案 ON',badgeOff:'提案 OFF',badgeWait:'保留',helpTitle:'ヘルプ',helpHtml:`<ul style="line-height:1.8;margin-left:1rem"><li>下書き＆要約</li><li>ウェブ結果の挿入</li><li>PIIマスキング</li><li>コピー/ペーストのショートカット</li><li><a href="${PRIV_LINK}" target="_blank" rel="noopener">プライバシーポリシー</a> · <a href="${TOS_LINK}" target="_blank" rel="noopener">利用規約</a></li></ul>`,settingsTitle:'設定',labelSuggest:'提案エディタを使用',labelInstant:'モバイル即時提案',labelPdfMask:'PDF保存時にマスキング',labelPiiHighlight:'エディタでPIIをハイライト',reopenConsent:'同意を再設定',toggleTheme:'テーマ切替',chatTitle:'💬 GPT-Nano Chat',chatFull:'⤢ 全画面',chatClose:'閉じる',chatPH:'Enterで送信',jumpFirst:'上位結果',jumpOpen:'今すぐ開く',jumpInsert:'エディタに挿入',aiNotice:'⚠️ AIモデルは間違えることがあります。重要な情報は再確認してください。'},msg:{insertDone:'挿入しました。',searchTooShort:'2文字以上入力してください。',noResults:'結果が見つかりません。',searchOK:'検索結果を挿入しました。',searchErr:'検索に失敗しました。',newDoc:'新しいドキュメントを開始します。',loginOK:'ログインしました',loginFail:'ログインに失敗',needLogin:'先にログインしてください。',logoutOK:'ログアウトしました。',pdfFail:'PDFの作成に失敗',pdfOK:'✅ PDFで保存しました',fileOK:'✅ ダウンロードを開始しました',exportFail:'エクスポートに失敗',exportOK:'✅ Google Docsへエクスポート完了',cloudLoaded:'☁️ クラウド下書きを読み込みました。',docLoaded:'ドキュメントを読み込みました。',consentSaved:'同意を保存しました。',consentOff:'提案エディタは無効になります。',attachOK:'添付を挿入しました。',popupBlocked:'ポップアップがブロックされました。リンクをコピーしました！'}},
+    fr:{ui:{authLogin:'Se connecter avec Google',authLogout:'Se déconnecter',save:'Enregistrer',chat:'Chat',theme:'Thème',settings:'Paramètres',help:'Aide',naver:'Blog Naver',twitter:'X (Twitter)',documents:'Documents',chats:'Historique des chats',newDoc:'➕ Nouveau document',newDocCTA:'+ Nouveau document',empty:'Aucun document pour le moment.',searchPH:'Rechercher (/ ou Ctrl+K)',searchBtn:'Rechercher',savePdf:'Enregistrer en PDF',saveHtml:'Enregistrer sur l’appareil (HTML)',exportDrive:'Exporter vers Drive (Google Docs)',drawerClose:'Fermer',drawerLang:'Langue',drawerMode:'Mode',consentTitle:'Informations sur la confidentialité',consentBody:'Vous pouvez utiliser le service sans vous connecter...',privacy:'Voir la politique de confidentialité',tos:'Voir les conditions d’utilisation',agree:'Accepter',decline:'Refuser',badgeOn:'Suggestions ON',badgeOff:'Suggestions OFF',badgeWait:'En attente',helpTitle:'Aide',helpHtml:`<ul style="line-height:1.8;margin-left:1rem"><li>Rédiger & résumer</li><li>Insérer des résultats Web</li><li>Masquage des informations personnelles</li><li>Bouton Copier / Raccourci Coller</li><li><a href="${PRIV_LINK}" target="_blank" rel="noopener">Politique de confidentialité</a> · <a href="${TOS_LINK}" target="_blank" rel="noopener">Conditions d’utilisation</a></li></ul>`,settingsTitle:'Paramètres',labelSuggest:'Activer l’éditeur de suggestions',labelInstant:'Suggestions instantanées (mobile)',labelPdfMask:'Masquer les PII lors de l’export PDF',labelPiiHighlight:'Afficher la mise en évidence PII',reopenConsent:'Gérer le consentement',toggleTheme:'Basculer le thème',chatTitle:'💬 GPT-Nano Chat',chatFull:'⤢ Plein écran',chatClose:'Fermer',chatPH:'Appuyez sur Entrée pour envoyer',jumpFirst:'Meilleur résultat',jumpOpen:'Ouvrir',jumpInsert:'Insérer dans l’éditeur',aiNotice:'⚠️ Les modèles d’IA peuvent se tromper. Veuillez revérifier les informations importantes.'},msg:{insertDone:'Inséré.',searchTooShort:'Saisissez au moins 2 caractères.',noResults:'Aucun résultat.',searchOK:'Résultat inséré.',searchErr:'Échec de la recherche.',newDoc:'Nouveau document démarré.',loginOK:'Connecté.',loginFail:'Échec de connexion.',needLogin:'Veuillez vous connecter.',logoutOK:'Déconnecté.',pdfFail:'Échec de création du PDF.',pdfOK:'✅ Enregistré en PDF',fileOK:'✅ Téléchargement lancé',exportFail:'Échec de l’exportation.',exportOK:'✅ Exporté vers Google Docs',cloudLoaded:'☁️ Brouillon cloud chargé.',docLoaded:'Document chargé.',consentSaved:'Consentement enregistré.',consentOff:'L’éditeur de suggestions sera désactivé.',attachOK:'Pièce jointe insérée.',popupBlocked:'Popup bloquée ; lien copié !'}},
+    vi:{ui:{authLogin:'Đăng nhập bằng Google',authLogout:'Đăng xuất',save:'Lưu',chat:'Trò chuyện',theme:'Chủ đề',settings:'Cài đặt',help:'Trợ giúp',naver:'Blog Naver',twitter:'X (Twitter)',documents:'Tài liệu',chats:'Lịch sử trò chuyện',newDoc:'➕ Tài liệu mới',newDocCTA:'+ Tài liệu mới',empty:'Chưa có tài liệu nào.',searchPH:'Tìm kiếm (/ hoặc Ctrl+K)',searchBtn:'Tìm',savePdf:'Lưu PDF',saveHtml:'Lưu về máy (HTML)',exportDrive:'Xuất sang Drive (Google Docs)',drawerClose:'Đóng',drawerLang:'Ngôn ngữ',drawerMode:'Chế độ',consentTitle:'Thông báo quyền riêng tư',consentBody:'Bạn có thể dùng dịch vụ mà không cần đăng nhập...',privacy:'Xem Chính sách quyền riêng tư',tos:'Xem Điều khoản dịch vụ',agree:'Đồng ý',decline:'Từ chối',badgeOn:'Gợi ý BẬT',badgeOff:'Gợi ý TẮT',badgeWait:'Đang chờ',helpTitle:'Trợ giúp',helpHtml:`<ul style="line-height:1.8;margin-left:1rem"><li>Soạn & tóm tắt</li><li>Chèn kết quả web</li><li>Ẩn thông tin nhạy cảm (PII)</li><li>Nút Sao chép / phím tắt Dán</li><li><a href="${PRIV_LINK}" target="_blank" rel="noopener">Chính sách quyền riêng tư</a> · <a href="${TOS_LINK}" target="_blank" rel="noopener">Điều khoản dịch vụ</a></li></ul>`,settingsTitle:'Cài đặt',labelSuggest:'Dùng trình biên tập gợi ý',labelInstant:'Gợi ý tức thời (di động)',labelPdfMask:'Ẩn PII khi xuất PDF',labelPiiHighlight:'Hiển thị tô sáng PII',reopenConsent:'Quản lý chấp thuận',toggleTheme:'Đổi chủ đề',chatTitle:'💬 GPT-Nano Chat',chatFull:'⤢ Toàn màn hình',chatClose:'Đóng',chatPH:'Nhấn Enter để gửi',jumpFirst:'Kết quả hàng đầu',jumpOpen:'Mở',jumpInsert:'Chèn vào trình biên tập',aiNotice:'⚠️ Mô hình AI có thể mắc lỗi. Hãy kiểm tra lại thông tin quan trọng.'},msg:{insertDone:'Đã chèn.',searchTooShort:'Nhập ít nhất 2 ký tự.',noResults:'Không có kết quả.',searchOK:'Đã chèn kết quả tìm kiếm.',searchErr:'Tìm kiếm thất bại.',newDoc:'Bắt đầu tài liệu mới.',loginOK:'Đã đăng nhập.',loginFail:'Đăng nhập thất bại.',needLogin:'Vui lòng đăng nhập trước.',logoutOK:'Đã đăng xuất.',pdfFail:'Tạo PDF thất bại.',pdfOK:'✅ Đã lưu PDF',fileOK:'✅ Bắt đầu tải xuống',exportFail:'Xuất thất bại.',exportOK:'✅ Đã xuất sang Google Docs',cloudLoaded:'☁️ Đã tải bản nháp trên đám mây.',docLoaded:'Đã tải tài liệu.',consentSaved:'Đã lưu chấp thuận.',consentOff:'Trình gợi ý sẽ bị tắt.',attachOK:'Đã chèn tệp đính kèm.',popupBlocked:'Cửa sổ bật lên bị chặn; đã sao chép liên kết!'}}
+  };
+
+  // 전역 상태
+  let uiLang = localStorage.getItem('lang') || 'ko';
+  let L = I18N[uiLang] || I18N.ko;
+
+  function applyLang(lang){
+    uiLang = ['ko','en','ja','fr','vi'].includes(lang)?lang:'ko';
+    L = I18N[uiLang] || I18N.ko;
+
+    $('#saveBtn').textContent = '💾 '+L.ui.save;
+    $('#chatBtn').textContent = '💬 '+L.ui.chat;
+    $('#themeBtn').textContent = '🌙 '+L.ui.theme;
+    $('#settingsBtn').textContent = '⚙️ '+L.ui.settings;
+    $('#helpBtn').textContent = '❓ '+L.ui.help;
+    $('#shareNaverBtn').textContent = L.ui.naver;
+    $('#shareTwitterBtn').textContent = L.ui.twitter;
+    $('#docListTitle').textContent = L.ui.documents;
+    $('#chatListTitle').textContent = L.ui.chats;
+    $('#newDocBtn').textContent = L.ui.newDoc;
+    if($('#newDocCTA')) $('#newDocCTA').textContent = L.ui.newDocCTA;
+    $('#emptyText').textContent = L.ui.empty;
+    $('#searchInput').placeholder = L.ui.searchPH;
+    $('#searchBtnText').textContent = L.ui.searchBtn;
+    $('#saveMenuPdf span').textContent = L.ui.savePdf;
+    $('#saveMenuDevice span').textContent = L.ui.saveHtml;
+    $('#exportBtn span').textContent = L.ui.exportDrive;
+
+    $('#labelLang').textContent = L.ui.drawerLang;
+    $('#labelMode').textContent = L.ui.drawerMode;
+
+    $('#chatTitle').textContent = L.ui.chatTitle;
+    $('#chatFullscreenToggle').textContent = L.ui.chatFull;
+    $('#chatClose').textContent = L.ui.chatClose;
+    $('#chatInput').placeholder = L.ui.chatPH;
+
+    $('#aiNotice').textContent = L.ui.aiNotice || '';
+
+    localStorage.setItem('lang', uiLang);
+    if($('#languageSelect')) $('#languageSelect').value = uiLang;
+    if($('#languageSelectMobile')) $('#languageSelectMobile').value = uiLang;
+    document.documentElement.setAttribute('lang', uiLang);
+
+    const sj=$('#searchJump'); if(sj) sj.style.display='none';
+  }
+
+  /* ===== caches ===== */
+  const AI_CACHE_KEY = 'thinkhelper:aiCache:v1';
+  const CHAT_CACHE_KEY = 'thinkhelper:chatCache:v1';
+  const loadCache = (k)=>{try{return JSON.parse(localStorage.getItem(k)||'{}')}catch(_){return{}}};
+  const saveCache = (k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}};
+  const aiCache = loadCache(AI_CACHE_KEY);
+  const chatCache = loadCache(CHAT_CACHE_KEY);
+  const cacheKeyFromIntent = (intent)=>[uiLang,intent.type||'next',(intent.topic||'').toLowerCase().trim().slice(0,80)].join('|');
+
+  /* ===== suggestion engine (로컬 + gptnano) ===== */
+  const LOCAL_KB = {'한화그룹':{pros:['방산·에너지 중심 포트폴리오로 경기 변동 분산.','우주·첨단소재·AI 등 신성장 투자 확대.','ESG 경영과 사회공헌 활동을 지속적으로 강화.'],cons:['대규모 투자에 따른 재무 레버리지와 회수 기간 부담.','주요 사업의 대외 변동성 및 경기 민감도 높음.','사업·지배구조 단순화 및 시너지 극대화 과제가 남음.']}};
+
+  function sanitizeLine(s){
+    if(!s) return '';
+    let t=String(s).replace(/\u00A0/g,' ').replace(/&nbsp;?/gi,' ').replace(/&amp;?/gi,' 및 ').replace(/&[a-zA-Z]+;?/g,' ').replace(/[?？]+$/,'').replace(/^\s*[-•●]\s*/,'').replace(/\s{2,}/g,' ').trim();
+    if(t.length<2) return '';
+    if(!/[.!?…]$/.test(t)) t+=(uiLang==='ko'?'':'')+'.';
+    t=t.replace(/\s+\./g,'.'); return t;
+  }
+  function textBeforeCaret(max=140){
+    const sel=window.getSelection(); if(!sel||!sel.anchorNode) return '';
+    const nodeText=sel.anchorNode.textContent||''; const off=Math.min(sel.anchorOffset||0,nodeText.length);
+    return nodeText.slice(Math.max(0,off-max), off);
+  }
+  function fallbackDetectIntent(ctx){
+    const s=(ctx||'').replace(/\s+/g,' ').trim();
+    const m=s.match(/([가-힣A-Za-z0-9&\s]{1,40})(?:의|에\s*대한)?\s*(장단점|장점|단점)$/);
+    if(m){ const topic=m[1].trim().replace(/&/g,' ').replace(/^(에\s*대한|관련)\s*/,'').trim(); return {type:'proscons',topic}; }
+    if(/실행|다음\s*단계|로드맵|계획$/.test(s)) return {type:'plan',topic:''};
+    if(/보고서|제안서|기획안|목차$/.test(s)) return {type:'report',topic:''};
+    if(/인공지능|AI/i.test(s)) return {type:'value',topic:'인공지능이 우리에게 제공하는 가치'};
+    return {type:'next',topic:''};
+  }
+  function localSuggestions(intent){
+    const list=[];
+    if(intent.type==='proscons'){
+      const k=LOCAL_KB[intent.topic];
+      if(k){ k.pros.forEach(v=>list.push('장점: '+v)); k.cons.forEach(v=>list.push('단점: '+v)); list.push('요약: 성장 기회는 크나 재무·대외 리스크 관리가 핵심.'); }
+      else list.push('장점: 핵심 역량으로 시장 신뢰와 점유율을 확보한다.','장점: 포트폴리오 다변화로 리스크를 분산한다.','단점: 외부 변수에 따른 실적 변동성이 존재한다.','단점: 투자 확대에 따른 비용·현금흐름 부담이 뒤따른다.','요약: 강점은 분명하지만 안정적 실행과 리스크 관리가 필요하다.');
+    }else if(intent.type==='plan'){
+      list.push('다음 단계: 목표를 수치로 정의하고 마일스톤을 확정한다.','다음 단계: 핵심 지표(KPI)와 책임자를 지정한다.','다음 단계: 리스크·의존성을 사전에 목록화하고 완화안을 마련한다.','다음 단계: 2주 단위 점검 리듬을 설정한다.');
+    }else if(intent.type==='report'){
+      list.push('목차: 개요 → 문제정의 → 데이터분석 → 대안 → 실행계획 → 리스크 → 결론.','서론: 본 보고서는 핵심 쟁점과 실행 가능한 대안을 간결히 제시한다.','핵심 요약: 데이터 기반으로 원인을 규명하고 우선순위를 제안한다.','결론: 단계적 실행으로 효과를 극대화하고 리스크를 통제한다.');
+    }else if(intent.type==='value'){
+      list.push('핵심 가치: 생산성 자동화와 의사결정 보조로 시간·비용을 절감한다.','핵심 가치: 개인화 추천과 창작 보조로 사용자 경험을 향상한다.','핵심 가치: 반복 작업 표준화로 품질을 균일화한다.','적용 예: 고객지원 요약·초안 생성·QA 자동응답을 단계적 도입.');
+    }else{
+      const last=textBeforeCaret(20);
+      if(/[은는이가]$/.test(last)) list.push('즉, 핵심은 다음과 같다.');
+      list.push('핵심 요점부터 간결하게 정리한다.','근거 데이터를 제시해 주장을 명확히 한다.','다음 단계의 실행 계획을 구체화한다.');
+    }
+    return list;
+  }
+
+  async function requestNanoJSON(prompt, timeoutMs=1800){
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs);
+    try{
+      const r=await fetch(apiUrl('chat'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gptnano',input:prompt,response_format:'json'}),signal:ctrl.signal});
+      clearTimeout(t); if(!r.ok) return null;
+      const j=await r.json();
+      if(j && Array.isArray(j.suggestions)) return j;
+      const raw=j?.text||j?.output||''; if(!raw) return null;
+      return {suggestions:String(raw).split(/\r?\n/).map(sanitizeLine).filter(Boolean)};
+    }catch(e){ clearTimeout(t); return null; }
+  }
+
+  async function smartSuggest(ctx){
+    let intent=fallbackDetectIntent(ctx||'');
+    const context=(ctx||'').trim();
+    const editorHead=htmlToText((window.editor && editor.getData && editor.getData())||'').slice(0,220);
+
+    const key=cacheKeyFromIntent(intent);
+    if(aiCache[key]) return aiCache[key].slice(0,8);
+
+    if(isOnline()){
+      const prompt=`역할: 한국어 글쓰기 보조.
+아래 문맥에서 "주제(topic)"와 "의도(intent)"를 추론하고, 주제에 맞는 한 줄 제안 4~8개를 만들어 JSON으로만 응답하세요.
+규칙: 질문형 금지, 특수기호 & 금지, 너무 장문 금지(한 줄 40자 내외).
+가능한 intent: ["proscons","plan","report","value","next"]
+응답 예시: {"topic":"인공지능이 우리에게 제공하는 가치","intent":"value","suggestions":["핵심 가치: ...","..."]}
+문맥:
+- 커서 인근: """${context}"""
+- 문서 서두: """${editorHead}"""
+현재 추정 intent: "${intent.type||'next'}"`;
+      const res=await requestNanoJSON(prompt,1800);
+      if(res && Array.isArray(res.suggestions) && res.suggestions.length){
+        if(res.intent) intent.type=String(res.intent).trim()||intent.type;
+        if(res.topic) intent.topic=String(res.topic).trim()||intent.topic;
+        const cleaned=Array.from(new Set(res.suggestions.map(sanitizeLine))).filter(Boolean).slice(0,8);
+        if(cleaned.length){ aiCache[cacheKeyFromIntent(intent)]=cleaned; saveCache(AI_CACHE_KEY,aiCache); return cleaned; }
+      }
+    }
+    const fb=localSuggestions(intent).map(sanitizeLine).filter(Boolean).slice(0,8);
+    if(fb.length){ aiCache[cacheKeyFromIntent(intent)]=fb; saveCache(AI_CACHE_KEY,aiCache); }
+    return fb;
+  }
+
+  function positionSuggestions(){
+    const el=$('#suggestions'); if(!el) return;
+    const sel=window.getSelection(); let rect=null;
+    try{ rect=sel?.rangeCount? sel.getRangeAt(0).getClientRects?.()[0] : null; }catch{ rect=null; }
+    const fallback=$('#editor').getBoundingClientRect(); const r=rect||fallback;
+    el.style.left=Math.max(8,(r.left||fallback.left)+12)+'px';
+    el.style.top=((r.bottom||fallback.top+48)+6)+'px';
+  }
+  function insertAtCursorText(text){
+    if(!editor||!text) return;
+    const clean=sanitizeLine(text); if(!clean) return;
+    editor.model.change(w=>{ const node=w.createText(clean+' '); editor.model.insertContent(node, editor.model.document.selection); });
+    showToast(L.msg.insertDone,900);
+  }
+  let suggestionIndex=-1, currentSuggestions=[];
+  function renderSuggestions(list){
+    const el=$('#suggestions');
+    if(!list||!list.length){ el.style.display='none'; suggestionIndex=-1; currentSuggestions=[]; return; }
+    const safe=window.DOMPurify?.sanitize||(x=>x);
+    el.innerHTML=list.map((t,i)=>`<div class="suggestion-item" data-i="${i}">${safe(t)}</div>`).join('');
+    el.querySelectorAll('.suggestion-item').forEach(n=> n.onclick=()=>{ insertAtCursorText(list[+n.dataset.i]); el.style.display='none'; });
+    currentSuggestions=list; suggestionIndex=0; document.querySelectorAll('#suggestions .suggestion-item').forEach((n,i)=> n.classList.toggle('selected',i===suggestionIndex));
+    el.style.display='block'; requestAnimationFrame(positionSuggestions);
+  }
+  function highlightSuggestion(){ document.querySelectorAll('#suggestions .suggestion-item').forEach((n,i)=> n.classList.toggle('selected',i===suggestionIndex)); }
+
+  let editor, piiLockActive=false;
+  let enableSuggestions=(localStorage.getItem('enableSuggestions')!=='false');
+  let enableInstant=(localStorage.getItem('enableInstant')!=='false');
+  const STOP_WORDS=new Set(['nbsp','amp','lt','gt','quot','apos','copy','reg','deg','ndash','mdash','™','®','©','·','•','—','–','...','…','',' ']);
+
+  async function updateEditorSuggestions(){
+    const box=$('#suggestions');
+    if(!enableSuggestions || piiLockActive){ if(box) box.style.display='none'; return; }
+    const ctx=textBeforeCaret(120);
+    if(!ctx.trim()){ if(box) box.style.display='none'; return; }
+    window.updateEditorSuggestions=updateEditorSuggestions;
+    const list=(await smartSuggest(ctx)).map(sanitizeLine).filter(Boolean).filter(s=>!STOP_WORDS.has(s.toLowerCase())).slice(0,8);
+    renderSuggestions(list);
+  }
+
+  document.addEventListener('keydown',function(e){
+    const el=$('#suggestions'); const visible=el&&el.style.display==='block';
+    if(visible && currentSuggestions.length){
+      if(e.key==='ArrowDown'){ e.preventDefault(); suggestionIndex=(suggestionIndex+1)%currentSuggestions.length; highlightSuggestion(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); suggestionIndex=(suggestionIndex-1+currentSuggestions.length)%currentSuggestions.length; highlightSuggestion(); }
+      else if(e.key==='Tab' && !e.ctrlKey && !e.metaKey){ e.preventDefault(); const idx=suggestionIndex>=0?suggestionIndex:0; insertAtCursorText(currentSuggestions[idx]); el.style.display='none'; }
+      else if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); const idx=suggestionIndex>=0?suggestionIndex:0; insertAtCursorText(currentSuggestions[idx]); el.style.display='none'; }
+      else if(e.key==='Escape'){ el.style.display='none'; }
+    }
+  });
+
+  function showToast(text,ms=2300){
+    const t=document.createElement('div'); t.className='toast'; t.textContent=text;
+    Object.assign(t.style,{position:'fixed',left:'50%',transform:'translateX(-50%)',bottom:'18px',background:'#333',color:'#fff',padding:'.6rem .9rem',borderRadius:'8px',zIndex:3000});
+    document.body.appendChild(t);
+    setTimeout(()=>{t.style.opacity='0'; t.style.transition='opacity .25s';}, ms-250);
+    setTimeout(()=>t.remove(), ms);
+  }
+
+  /* ===== local docs ===== */
+  const LOCAL_DOCS_KEY='thinkhelper:localDocs:v1';
+  const DRAFT_KEY='thinkhelper:editorDraft:v1';
+  const loadLocalDocs=()=>{try{return JSON.parse(localStorage.getItem(LOCAL_DOCS_KEY)||'[]');}catch(e){return[];}};
+  const saveLocalDocs=(l)=>{try{localStorage.setItem(LOCAL_DOCS_KEY,JSON.stringify(l));}catch(e){}};
+  function addLocalDoc(title, html){
+    const list=loadLocalDocs(); list.unshift({id:'local-'+Date.now(), title, html, updatedAt:Date.now()});
+    saveLocalDocs(list); renderDocList(); return list[0];
+  }
+  function renderDocList(cloudMeta=null){
+    const ul=$('#docList'); if(!ul) return; ul.innerHTML='';
+    const safe=window.DOMPurify?.sanitize||(x=>x);
+    if(cloudMeta){
+      const li=document.createElement('li');
+      li.innerHTML=`<span>☁️ ${safe(cloudMeta.title||'Cloud Draft')}</span><small>${new Date(cloudMeta.updatedAt||Date.now()).toLocaleString()}</small>`;
+      li.onclick=()=>{ if(cloudMeta.html){ editor.setData(cloudMeta.html); showToast(L.msg.cloudLoaded); } };
+      ul.appendChild(li);
+    }
+    const list=loadLocalDocs();
+    if(!cloudMeta && list.length===0 && ul.children.length===0) $('#emptyCTA').style.display='block';
+    else $('#emptyCTA').style.display='none';
+    list.forEach(d=>{
+      const li=document.createElement('li');
+      li.innerHTML=`<span>💾 ${safe(d.title)}</span><small>${new Date(d.updatedAt).toLocaleString()}</small>`;
+      li.onclick=()=>{ editor.setData(d.html||''); showToast(L.msg.docLoaded); };
+      ul.appendChild(li);
+    });
+  }
+
+  /* ===== share ===== */
+  function openPopup(u){
+    const w=600,h=640,y=(window.outerHeight/2+window.screenY-h/2),x=(window.outerWidth/2+window.screenX-w/2);
+    const win=window.open(u,'_blank',`noopener,width=${w},height=${h},left=${x},top=${y}`);
+    if(!win && navigator.clipboard?.writeText){ navigator.clipboard.writeText(u).then(()=> showToast(L.msg.popupBlocked)); }
+  }
+  function openExternal(u){
+    const win=window.open(u,'_blank','noopener');
+    if(!win && navigator.clipboard?.writeText){ navigator.clipboard.writeText(u).then(()=> showToast(L.msg.popupBlocked)); }
+  }
+  function getSharePayload(){ const html=editor?.getData?.()||''; const text=htmlToText(html); return { title:text.slice(0,80)||'ThinkHelper', url:location.href }; }
+  function bindShare(btn,builder){ if(btn) btn.onclick=()=>{ const p=getSharePayload(); openPopup(builder(p.title,p.url)); }; }
+
+  /* ===== CKEditor Upload (base64) ===== */
+  const fileToDataURL=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});
+  class Base64UploadAdapter{ constructor(loader){this.loader=loader;} async upload(){const f=await this.loader.file;if(f.size>5*1024*1024) throw new Error('이미지 파일이 너무 큽니다.(최대 5MB)'); return {default: await fileToDataURL(f)};} abort(){} }
+
+  /* ===== PII ===== */
+  const PII_PATTERNS=[{type:'rrn',rx:/\b\d{6}[- ]?\d{7}\b/g},{type:'card',rx:/\b(?:\d{4}[- ]?){3}\d{4}\b/g},{type:'dl',rx:/\b\d{2}-\d{2}-\d{6}-\d{2}\b/g},{type:'passport',rx:/\b[A-Z]{1}\d{7,8}\b/g},{type:'phone',rx:/\b(?:1\d{2}|01[016789]|0\d{1,2})[- ]?\d{3,4}[- ]?\d{4}\b/g},{type:'email',rx:/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g},{type:'acct',rx:/\b\d{2,6}(?:-\d{2,6}){1,3}\b/g},{type:'addr',rx:/(?:[가-힣]{2,10}(시|군|구))\s?.{0,20}?\d{1,4}(?:-\d{1,3})?\b/g}];
+  const NAME_WITH_CUE=/(?:이름|성함|Name)\s*[:：]?\s*([가-힣]{2,4}|[A-Z][a-z]+(?:\s[A-Z][a-z]+)+)/u;
+  function findPIIMatches(text){
+    const m=[]; for(const o of PII_PATTERNS){ o.rx.lastIndex=0; let r; while((r=o.rx.exec(text))!==null){ m.push({start:r.index,end:r.index+r[0].length,type:o.type}); } }
+    const nm=NAME_WITH_CUE.exec(text); if(nm) m.push({start:nm.index,end:nm.index+nm[0].length,type:'name'});
+    m.sort((a,b)=> a.start===b.start? b.end-a.end : a.start-b.start);
+    const out=[]; let last=-1;
+    for(const x of m){ if(x.start>=last){ out.push(x); last=x.end; } } return out;
+  }
+
+  async function copySelection(){
+    try{
+      const sel=window.getSelection(); const text=sel && sel.toString ? sel.toString() : '';
+      if(text){ await navigator.clipboard?.writeText(text); showToast('✅ Copied'); return; }
+    }catch(_){}
+    try{
+      const tmp=document.createElement('textarea'); tmp.style.position='fixed'; tmp.style.opacity='0';
+      tmp.value=htmlToText(editor?.getData?.()||''); document.body.appendChild(tmp); tmp.select(); document.execCommand('copy'); tmp.remove();
+      showToast('✅ Copied');
+    }catch(_){ showToast('Copy failed'); }
+  }
+
+  /* ===== PDF/Export ===== */
+  function titleFromContent(){ const plain=htmlToText(editor?.getData?.()||''); const first=(plain.split(/\n|\./)[0]||'ThinkHelper').slice(0,80).replace(/[\\/:*?"<>|]/g,'_'); return first||'ThinkHelper'; }
+  function positionSaveMenu(){ const b=$('#saveBtn'), m=$('#saveMenu'); const r=b.getBoundingClientRect(); m.style.left=r.left+'px'; m.style.top=(r.bottom+6)+'px'; }
+  function toggleSaveMenu(){ const m=$('#saveMenu'); if(m.style.display==='block'){m.style.display='none';return;} positionSaveMenu(); m.style.display='block'; const onDoc=(e)=>{ if(!m.contains(e.target) && e.target!==$('#saveBtn')){ m.style.display='none'; document.removeEventListener('click',onDoc);} }; setTimeout(()=>document.addEventListener('click',onDoc),0); }
+  function buildStandaloneHtmlDoc({maskPII=true}={}){
+    const doc=document.implementation.createHTMLDocument(titleFromContent());
+    const head=doc.head; head.appendChild(Object.assign(doc.createElement('meta'),{charset:'utf-8'})); head.appendChild(Object.assign(doc.createElement('meta'),{name:'viewport',content:'width=device-width,initial-scale=1'}));
+    const style=doc.createElement('style'); style.textContent='body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6;padding:16px;color:#111}h2{margin:0 0 12px 0}blockquote{border-left:3px solid #ddd;margin:8px 0;padding:4px 8px;color:#555}a{color:#1565c0}.pii-pill-exp{display:inline-block;padding:0 .45em;border-radius:999px;border:1px dashed #f44336;background:#ffe7e7;color:#b71c1c}'; head.appendChild(style);
+    const h2=doc.createElement('h2'); h2.textContent=titleFromContent(); doc.body.appendChild(h2);
+    const tmp=document.createElement('div'); tmp.innerHTML=editor?.getData?.()||'';
+    if(maskPII){
+      const walker=document.createTreeWalker(tmp,NodeFilter.SHOW_TEXT,null); const nodes=[]; let n; while((n=walker.nextNode())) nodes.push(n);
+      nodes.forEach(function(node){ const text=node.nodeValue||''; const hits=findPIIMatches(text); if(!hits.length) return; const frag=doc.createDocumentFragment(); let cur=0; hits.forEach(function(h){ if(h.start>cur) frag.appendChild(doc.createTextNode(text.slice(cur,h.start))); const pill=doc.createElement('span'); pill.setAttribute('class','pii-pill-exp'); pill.textContent='••••'; frag.appendChild(pill); cur=h.end; }); if(cur<text.length) frag.appendChild(doc.createTextNode(text.slice(cur))); if(node.parentNode) node.parentNode.replaceChild(frag,node); });
+    }
+    Array.from(tmp.childNodes).forEach(ch=> doc.body.appendChild(doc.importNode(ch,true)));
+    return '<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+  }
+  async function ensureHtml2Pdf(){ if(window.html2pdf) return true; return new Promise(res=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js'; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); }); }
+  function downloadBlob(blob,filename){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); }
+
+  /* ===== Auth/Drive via server (no client id exposed) ===== */
+  let isLoggedIn=false, userProfile=null;
+  function setSignedInUI(signed){
+    isLoggedIn=!!signed;
+    const labelSignIn=L?.ui?.authLogin||'Sign in'; const labelSignOut=L?.ui?.authLogout||'Sign out';
+    $('#authBtn').textContent = signed ? labelSignOut : labelSignIn;
+    $('#authBtn').onclick = signed ? logout : login;
+    $('#loginDisplay').textContent = (signed && userProfile) ? (userProfile.name || userProfile.email || '') : '';
+  }
+  async function getMe(){ try{ const r=await fetch(apiUrl('google/me'),{credentials:'include'}); return r.ok?await r.json():null; }catch(_){ return null; } }
+  async function login(){
+    try{
+      const r=await fetch(apiUrl('google/login'),{method:'POST',credentials:'include'}); const j=r.ok?await r.json():null;
+      if(!j?.auth_url) throw new Error('No auth_url');
+      const w=520,h=640,y=(window.outerHeight/2+window.screenY-h/2),x=(window.outerWidth/2+window.screenX-w/2);
+      const win=window.open(j.auth_url,'_blank',`noopener,width=${w},height=${h},left=${x},top=${y}`);
+      let me=null,tries=0;
+      while(tries<60){ await new Promise(res=>setTimeout(res,1000)); me=await getMe(); if(me?.email) break; if(win && win.closed) break; tries++; }
+      if(me?.email){ userProfile=me; setSignedInUI(true); showToast(L.msg.loginOK); await loadCloudDraft(); } else { showToast(L.msg.loginFail); }
+    }catch(_){ showToast(L.msg.loginFail); }
+  }
+  async function logout(){ try{ await fetch(apiUrl('google/logout'),{method:'POST',credentials:'include'}); }catch(_){ } userProfile=null; setSignedInUI(false); showToast(L.msg.logoutOK); }
+
+  const debCloud=(fn,ms=1200)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+  async function saveCloudDraftNow(){
+    if(!isLoggedIn) return;
+    const payload={title:titleFromContent(), html:editor?.getData?.()||'', updatedAt:Date.now()};
+    try{
+      await fetch(apiUrl('google/appdata/draft'),{method:'PUT',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});
+      renderDocList(payload);
+    }catch(e){ console.warn('saveCloudDraft error',e); }
+  }
+  const saveCloudDraftDebounced=debCloud(saveCloudDraftNow,1200);
+  async function loadCloudDraft(){
+    try{
+      const r=await fetch(apiUrl('google/appdata/draft'),{credentials:'include'});
+      if(!r.ok){ renderDocList({title:'Cloud Draft',updatedAt:Date.now(),html:editor?.getData?.()||''}); return; }
+      const data=await r.json();
+      if(data && data.html){ const currentPlain=htmlToText(editor?.getData?.()||''); if(!currentPlain){ editor.setData(data.html||''); showToast(L.msg.cloudLoaded); } }
+      renderDocList(data||{title:'Cloud Draft',updatedAt:Date.now(),html:editor?.getData?.()||''});
+    }catch(e){ console.warn('loadCloudDraft error',e); }
+  }
+
+  /* ===== Consent ===== */
+  function updateConsentBadge(){
+    const choice=localStorage.getItem('consent-ok'); const b=$('#consentBadge');
+    if(choice==='0'){ b.textContent=L.ui.badgeOff; b.classList.add('off'); }
+    else if(choice==='1'){ b.textContent=L.ui.badgeOn; b.classList.remove('off'); }
+    else { b.textContent=L.ui.badgeWait; b.classList.remove('off'); }
+  }
+  function applyConsentEffect(){
+    const choice=localStorage.getItem('consent-ok');
+    if(choice==='0'){
+      enableSuggestions=false; localStorage.setItem('enableSuggestions','false');
+      const s=$('#suggestions'); if(s) s.style.display='none';
+    }
+    updateConsentBadge();
+  }
+  function initConsent(){
+    const choice=localStorage.getItem('consent-ok');
+    if(choice===null){ $('#consent').style.display='flex'; }
+    else{ applyConsentEffect(); }
+    $('#agreeBtn').onclick=function(){
+      localStorage.setItem('consent-ok','1'); $('#consent').style.display='none';
+      enableSuggestions=(localStorage.getItem('enableSuggestions')!=='false'); applyConsentEffect(); showToast(L.msg.consentSaved);
+    };
+    $('#declineBtn').onclick=function(){
+      localStorage.setItem('consent-ok','0'); $('#consent').style.display='none';
+      applyConsentEffect(); showToast(L.msg.consentOff);
+    };
+    $('#consentClose').onclick=function(){ $('#consent').style.display='none'; };
+  }
+
+  /* ===== Search ===== */
+  const SEARCH_HISTORY_KEY='thinkhelper:searchHistory';
+  const getHistory=()=>{try{return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY)||'[]');}catch(e){return[];}};
+  const addHistory=q=>{ if(!q) return; const arr=getHistory().filter(x=>x!==q); arr.unshift(q); localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(arr.slice(0,30))); };
+  function sanitizeQuery(q){ return (q||'').replace(/\u00A0/g,' ').replace(/&nbsp;?/gi,' ').replace(/&amp;?/gi,' ').replace(/\s{2,}/g,' ').trim(); }
+  function buildSearchSuggestions(q){
+    q=sanitizeQuery(q||''); if(!q) return getHistory().slice(0,8);
+    const hist=getHistory().filter(h=>h.toLowerCase().startsWith(q.toLowerCase()));
+    const lang=uiLang;
+    const exp=lang==='ko'?[`${q} 의미`,`${q} 예시`,`${q} 핵심`,`${q} 요약`,`${q} 장단점`,`${q} 쉽게 설명`]
+      : lang==='ja'?[`${q} とは`,`${q} 例`,`${q} 要点`,`${q} 要約`,`${q} 長所 短所`,`やさしく ${q}`]
+      : lang==='fr'?[`${q} signification`,`exemples ${q}`,`points clés ${q}`,`${q} résumé`,`${q} avantages inconvénients`,`expliquer ${q}`]
+      : lang==='vi'?[`${q} là gì`,`ví dụ ${q}`,`điểm chính ${q}`,`${q} tóm tắt`,`ưu nhược điểm ${q}`,`giải thích ${q}`]
+      : [`${q} meaning`,`${q} examples`,`${q} key points`,`${q} summary`,`${q} pros and cons`,`explain ${q}`];
+    return Array.from(new Set([...hist,...exp.map(sanitizeQuery)])).filter(Boolean).slice(0,8);
+  }
+  let ssIndex=-1, ssItems=[];
+  function showSearchSuggest(){
+    const q=$('#searchInput').value; const list=buildSearchSuggestions(q); const box=$('#searchSuggest');
+    if(!list.length){ box.style.display='none'; ssItems=[]; ssIndex=-1; return; }
+    const safe=window.DOMPurify?.sanitize||(x=>x);
+    box.innerHTML=list.map((t,i)=>`<div class="search-sug-item" data-i="${i}"><span class="icon">🔎</span><span class="text">${safe(t)}</span></div>`).join('');
+    box.querySelectorAll('.search-sug-item').forEach(n=>{ n.onclick=()=>{ $('#searchInput').value=list[+n.dataset.i]; doSearch(false); box.style.display='none'; }; });
+    ssItems=list; ssIndex=0; box.style.display='block';
+  }
+  function renderOpenSuggestion(first){
+    const box=$('#searchJump'); if(!first){ box.style.display='none'; return; }
+    const safe=window.DOMPurify?.sanitize||(x=>x);
+    box.innerHTML=`<span class="label">🔗 ${L.ui.jumpFirst}</span><span class="meta" title="${safe(first.title||first.link)}">${safe(first.title||first.link)}</span><div style="margin-left:auto;display:flex;gap:.4rem"><button class="btn tiny" id="jumpGoBtn">${L.ui.jumpOpen}</button><button class="btn tiny" id="jumpInsertBtn">${L.ui.jumpInsert}</button></div>`;
+    box.style.display='flex';
+    $('#jumpGoBtn').onclick=()=>{ openExternal(first.link); box.style.display='none'; };
+    $('#jumpInsertBtn').onclick=()=>{ insertSearchResult(first); box.style.display='none'; };
+  }
+  function insertSearchResult(first){
+    const safe=window.DOMPurify?.sanitize||(x=>x);
+    const q=($('#searchInput').value||'').trim();
+    const h='<blockquote><p>🔍 <a href="'+first.link+'" target="_blank" rel="noopener">'+(first.title?safe(first.title):q)+'</a></p><p>'+(first.snippet?safe(first.snippet):'')+'</p></blockquote><p></p>';
+    editor.model.change(function(w){ const frag=editor.data.toModel(editor.data.processor.toView(h)); w.insert(frag, editor.model.document.selection.getFirstPosition()); });
+    showToast(L.msg.searchOK);
+  }
+  async function doSearch(preferNavigate=false){
+    const q=(($('#searchInput').value)||'').trim();
+    if(q.length<2) return showToast(L.msg.searchTooShort);
+    addHistory(q);
+    try{
+      const r=await fetch(apiUrl('search')+'?q='+encodeURIComponent(q));
+      const j=await r.json(); const first=(j.links||[])[0];
+      if(!first) return showToast(L.msg.noResults);
+      if(preferNavigate){ openExternal(first.link); return; }
+      renderOpenSuggestion(first);
+    }catch(_){ showToast(L.msg.searchErr); }
+  }
+
+  /* ===== Consent/UI/etc init after DOM ready ===== */
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    // 언어 적용 (가장 먼저)
+    const langSource=localStorage.getItem('langSource');
+    if(langSource!=='user'){
+      const nav=(navigator.language||'en').slice(0,2).toLowerCase();
+      if(['ko','en','ja','fr','vi'].includes(nav)) uiLang=nav;
+    }
+    applyLang(uiLang);
+    if($('#languageSelect')) $('#languageSelect').addEventListener('change', e=>{ localStorage.setItem('langSource','user'); applyLang(e.target.value||'ko'); });
+    if($('#languageSelectMobile')) $('#languageSelectMobile').addEventListener('change', e=>{ localStorage.setItem('langSource','user'); applyLang(e.target.value||'ko'); });
+
+    // 에디터 초기화
+    async function initEditor(){
+      if(!window.ClassicEditor){ console.error('ClassicEditor not loaded'); return; }
+      const ed=await ClassicEditor.create($('#editor'),{extraPlugins:[]});
+      ed.plugins.get('FileRepository').createUploadAdapter=function(loader){ return new Base64UploadAdapter(loader); };
+      editor=ed;
+
+      // PII 표시 attribute
+      editor.model.schema.extend('$text',{allowAttributes:['piiType']});
+      editor.conversion.for('downcast').attributeToElement({ model:'piiType', view:(val,api)=> api.writer.createAttributeElement('span',{class:'pii-pill','data-type':val},{priority:5}) });
+      editor.conversion.for('dataDowncast').attributeToElement({ model:'piiType', view:(val,api)=> api.writer.createAttributeElement('span',{class:'pii-pill','data-type':val},{priority:5}) });
+
+      // 드래프트 로드
+      try{ const saved=localStorage.getItem(DRAFT_KEY); if(saved && !editor.getData()) editor.setData(saved); }catch(_){}
+      const scanPII=function(){
+        editor.model.change(function(writer){
+          const root=editor.model.document.getRoot();
+          writer.removeAttribute('piiType', editor.model.createRangeIn(root));
+          const walker=editor.model.createRangeIn(root).getWalker({ignoreElementEnd:true});
+          for(const step of walker){
+            if(!step.item.is('textProxy')) continue;
+            const base=step.previousPosition; const data=step.item.data||''; if(!data.trim()||!base) continue;
+            const matches=findPIIMatches(data);
+            for(const m of matches){ const s=base.getShiftedBy(m.start), e=base.getShiftedBy(m.end); writer.setAttribute('piiType', m.type, writer.createRange(s,e)); }
+          }
+        });
+        const sel=editor.model.document.selection;
+        piiLockActive=!!sel.getAttribute('piiType'); if(piiLockActive) $('#suggestions').style.display='none';
+      };
+
+      const deb=(fn,ms=200)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+      const saveDraft=deb(function(){ try{ localStorage.setItem(DRAFT_KEY, editor.getData()||''); }catch(_){ } saveCloudDraftDebounced(); },500);
+      const updateEditorSuggestionsDebounced=deb(updateEditorSuggestions,140);
+
+      const onChanged=function(){ scanPII(); if(enableInstant && window.innerWidth<=860) updateEditorSuggestions(); else updateEditorSuggestionsDebounced(); saveDraft(); };
+      ed.model.document.on('change:data', onChanged);
+      ed.model.document.selection.on('change:range', function(){ const sel=editor.model.document.selection; piiLockActive=!!sel.getAttribute('piiType'); if(!piiLockActive) updateEditorSuggestionsDebounced(); else $('#suggestions').style.display='none'; });
+
+      const el=ed.ui.view.editable.element;
+      ['input','keyup','mouseup','touchend','focus'].forEach(evt=>{ el.addEventListener(evt,function(){ if(!piiLockActive) updateEditorSuggestions(); },{passive:true}); });
+      window.addEventListener('resize',function(){ if($('#suggestions').style.display==='block') positionSuggestions(); });
+      document.addEventListener('scroll',function(){ if($('#suggestions').style.display==='block') positionSuggestions(); },true);
+
+      el.addEventListener('drop', async function(e){
+        const files=e.dataTransfer?.files; if(!files||!files.length) return;
+        const non=[]; for(let i=0;i<files.length;i++){ if(!files[i].type.startsWith('image/')) non.push(files[i]); }
+        if(!non.length) return; e.preventDefault();
+        for(const f of non){
+          const url=URL.createObjectURL(f);
+          editor.model.change(function(w){
+            const frag=editor.data.toModel(editor.data.processor.toView('<p>📎 <a href="'+url+'" download="'+encodeURIComponent(f.name)+'">'+f.name+'</a></p>'));
+            w.insert(frag, editor.model.document.selection.getFirstPosition());
+          });
+        }
+        showToast(L.msg.attachOK);
+      });
+
+      renderDocList();
+      document.querySelectorAll('small[style*="color:red"]').forEach(n=>n.remove());
+    }
+    await initEditor();
+
+    /* 설정/모달 핸들링 */
+    function syncSettingsUI(){
+      $('#toggleSuggestions').checked=(localStorage.getItem('enableSuggestions')!=='false');
+      $('#toggleInstant').checked=(localStorage.getItem('enableInstant')!=='false');
+      $('#togglePdfMask').checked=(localStorage.getItem('pdfMask')!=='false');
+      $('#togglePiiHighlight').checked=(localStorage.getItem('piiHighlight')!=='false');
+      const denied=localStorage.getItem('consent-ok')==='0'; $('#toggleSuggestions').disabled=denied;
+    }
+    $('#settingsBtn').onclick=function(){ syncSettingsUI(); $('#settingsModal').style.display='flex'; };
+    $('#settingsBtnMobileQA').onclick=function(){ syncSettingsUI(); $('#settingsModal').style.display='flex'; };
+    document.querySelectorAll('.modal .close,[data-close]').forEach(btn=>{
+      btn.addEventListener('click',()=>{ const sel=btn.getAttribute('data-close'); if(sel) document.querySelector(sel).style.display='none'; else $('#consent').style.display='none'; });
+    });
+    document.querySelectorAll('.modal').forEach(m=>{ m.addEventListener('click',e=>{ if(e.target===m) m.style.display='none'; }); });
+
+    $('#toggleSuggestions').addEventListener('change', e=>{ localStorage.setItem('enableSuggestions', e.target.checked?'true':'false'); enableSuggestions=e.target.checked; if(!enableSuggestions) $('#suggestions').style.display='none'; else updateEditorSuggestions(); });
+    $('#toggleInstant').addEventListener('change', e=>{ localStorage.setItem('enableInstant', e.target.checked?'true':'false'); enableInstant=e.target.checked; });
+    $('#togglePdfMask').addEventListener('change', e=>{ localStorage.setItem('pdfMask', e.target.checked?'true':'false'); });
+    $('#togglePiiHighlight').addEventListener('change', e=>{
+      localStorage.setItem('piiHighlight', e.target.checked?'true':'false');
+      document.body.classList.toggle('hide-pii', !e.target.checked);
+      const cssId='pii-hide-style'; let s=document.getElementById(cssId);
+      if(!e.target.checked){ if(!s){ s=document.createElement('style'); s.id=cssId; s.textContent='.ck-content .pii-pill{visibility:hidden}'; document.head.appendChild(s);} }
+      else if(s){ s.remove(); }
+    });
+    $('#toggleThemeInSettings').onclick=()=> document.body.classList.toggle('dark');
+    $('#reopenConsent').onclick=()=> $('#consent').style.display='flex';
+
+    /* 저장 메뉴 */
+    $('#saveBtn').onclick=toggleSaveMenu;
+    window.addEventListener('resize',()=>{ if($('#saveMenu').style.display==='block') positionSaveMenu(); });
+    $('#saveMenuPdf').onclick=async function(){
+      $('#saveMenu').style.display='none'; const ok=await ensureHtml2Pdf(); if(!ok) return showToast(L.msg.pdfFail);
+      const wrap=document.createElement('div'); wrap.style.padding='16px';
+      const mask=(localStorage.getItem('pdfMask')!=='false'); const html=buildStandaloneHtmlDoc({maskPII:mask});
+      const parsed=new DOMParser().parseFromString(html,'text/html'); wrap.appendChild(parsed.body.cloneNode(true));
+      try{ await html2pdf().set({margin:10,filename:titleFromContent()+'.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(wrap).save();
+        addLocalDoc(titleFromContent()+' (PDF)', editor.getData()||''); showToast(L.msg.pdfOK);
+      }catch(_){ showToast(L.msg.pdfFail); }
+    };
+    $('#saveMenuDevice').onclick=function(){
+      $('#saveMenu').style.display='none'; const mask=(localStorage.getItem('pdfMask')!=='false');
+      const html=buildStandaloneHtmlDoc({maskPII:mask}); downloadBlob(new Blob([html],{type:'text/html'}), titleFromContent()+'.html');
+      addLocalDoc(titleFromContent()+' (HTML)', editor.getData()||''); showToast(L.msg.fileOK);
+    };
+
+    /* 공유 */
+    bindShare($('#shareNaverBtn'),(t,u)=>`https://share.naver.com/web/shareView?url=${encodeURIComponent(u)}&title=${encodeURIComponent(t)}`);
+    bindShare($('#shareTwitterBtn'),(t,u)=>`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`);
+    const bindShareMobile=(btn,builder)=>{ if(btn) btn.onclick=()=>{ const p=getSharePayload(); openPopup(builder(p.title,p.url)); $('#drawer').style.display='none'; }; };
+    bindShareMobile($('#shareNaverBtnMobileQA'),(t,u)=>`https://share.naver.com/web/shareView?url=${encodeURIComponent(u)}&title=${encodeURIComponent(t)}`);
+    bindShareMobile($('#shareTwitterBtnMobileQA'),(t,u)=>`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`);
+
+    /* 복사 */
+    $('#copyBtn').onclick=copySelection;
+
+    /* Drawer/테마 */
+    function applyTimeTheme(){ const h=new Date().getHours(); document.body.classList.toggle('dark',(h>=18||h<6)); }
+    applyTimeTheme(); setInterval(applyTimeTheme,5*60*1000);
+    $('#themeBtn').onclick=()=> document.body.classList.toggle('dark');
+    $('#themeBtnMobileQA').onclick=()=>{ document.body.classList.toggle('dark'); $('#drawer').style.display='none'; };
+    const drawer=$('#drawer'); $('#sidebarToggle').onclick=()=>{ if(window.innerWidth<=860){ drawer.style.display='flex'; drawer.setAttribute('aria-hidden','false'); } else { $('#sidebar').classList.toggle('open'); } };
+    $('#menuBtn').onclick=()=>{ drawer.style.display='flex'; drawer.setAttribute('aria-hidden','false'); };
+    $('#drawerClose').onclick=()=>{ drawer.style.display='none'; drawer.setAttribute('aria-hidden','true'); };
+    drawer.addEventListener('click',(e)=>{ if(e.target===drawer){ drawer.style.display='none'; drawer.setAttribute('aria-hidden','true'); } });
+
+    // 입력 추천: 드로어가 열리면 숨김
+    (function(){
+      const isMobile=()=>window.matchMedia('(max-width: 860px)').matches; let pausedByDrawer=false;
+      function pauseSuggestions(){ if(!isMobile()) return; pausedByDrawer=true; const box=$('#suggestions'); if(box) box.style.display='none'; }
+      function resumeSuggestions(){ if(!isMobile()) return; pausedByDrawer=false; if(typeof window.updateEditorSuggestions==='function'){ setTimeout(window.updateEditorSuggestions,0); } }
+      ;['menuBtn','sidebarToggle'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('click',pauseSuggestions,{capture:true}); });
+      const drawerEl=document.getElementById('drawer'); const drawerClose=document.getElementById('drawerClose');
+      if(drawerClose) drawerClose.addEventListener('click',resumeSuggestions,{capture:true});
+      if(drawerEl) drawerEl.addEventListener('click',(e)=>{ if(e.target===drawerEl) resumeSuggestions(); });
+      (function patch(){ if(typeof window.updateEditorSuggestions!=='function'){ setTimeout(patch,50); return; }
+        const orig=window.updateEditorSuggestions;
+        window.updateEditorSuggestions=function(){ if(pausedByDrawer && isMobile()){ const box=document.getElementById('suggestions'); if(box) box.style.display='none'; return; } return orig.apply(this,arguments); };
+      })();
+    })();
+
+    /* 도움말 */
+    function openHelpModal(){
+      const safe=window.DOMPurify?.sanitize||(x=>x);
+      document.getElementById('helpTitle').textContent = (L?.ui?.helpTitle)||'도움말';
+      document.getElementById('helpContent').innerHTML = safe((L?.ui?.helpHtml)||'<p>도움말 내용을 준비 중입니다.</p>');
+      document.getElementById('helpModal').style.display='flex';
+    }
+    document.getElementById('helpBtn').addEventListener('click', openHelpModal);
+
+    /* 동의 배지/모달 */
+    initConsent();
+
+    /* Auth 상태 확인 */
+    try{
+      const me=await getMe();
+      if(me?.email){ userProfile=me; setSignedInUI(true); await loadCloudDraft(); }
+      else setSignedInUI(false);
+    }catch(_){ setSignedInUI(false); }
+
+    /* 검색 바인딩 */
+    $('#searchInput').addEventListener('input', showSearchSuggest);
+    $('#searchInput').addEventListener('focus', showSearchSuggest);
+    document.addEventListener('click',(e)=>{ if(!$('#inlineSearch').contains(e.target)) $('#searchSuggest').style.display='none'; });
+    $('#searchInput').addEventListener('keydown',(e)=>{
+      const box=$('#searchSuggest');
+      if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); doSearch(true); box.style.display='none'; return; }
+      if(box.style.display!=='block'||!ssItems.length) return;
+      if(e.key==='ArrowDown'){ e.preventDefault(); ssIndex=(ssIndex+1)%ssItems.length; box.querySelectorAll('.search-sug-item').forEach((n,i)=> n.classList.toggle('selected',i===ssIndex)); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); ssIndex=(ssIndex-1+ssItems.length)%ssItems.length; box.querySelectorAll('.search-sug-item').forEach((n,i)=> n.classList.toggle('selected',i===ssIndex)); }
+      else if(e.key==='Enter'){ e.preventDefault(); if(ssIndex>=0){ $('#searchInput').value=ssItems[ssIndex]; } doSearch(false); box.style.display='none'; }
+      else if(e.key==='Escape'){ box.style.display='none'; }
+    });
+    $('#searchBtn').onclick=()=>doSearch(false);
+
+    /* 채팅 */
+    function appendChat(role,text){ const d=document.createElement('div'); d.className='chatMsg '+(role==='user'?'user':'ai'); d.textContent=text; $('#chatLog').appendChild(d); $('#chatLog').scrollTop=$('#chatLog').scrollHeight; }
+    async function sendChat(){
+      const v=$('#chatInput').value.trim(); if(!v) return; appendChat('user',v); $('#chatInput').value='';
+      const key=[uiLang,v].join('|'); let reply='';
+      if(chatCache[key]) reply=chatCache[key];
+      else if(isOnline()){
+        try{
+          const r=await fetch(apiUrl('chat'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gptnano',input:v})});
+          const j=r.ok?await r.json():null; reply=j?.output||j?.text||j?.message||'';
+          if(reply){ chatCache[key]=reply; saveCache(CHAT_CACHE_KEY,chatCache); }
+        }catch(_){ reply=''; }
+      }
+      if(!reply){ reply='(오프라인) 캐시에 없는 질문입니다. 대신 문서 작성 템플릿:\n- 핵심 요약 한 줄\n- 근거 데이터/사례\n- 다음 단계 3가지\n- 기대 효과 및 리스크'; }
+      appendChat('ai',reply);
+    }
+    $('#chatBtn').onclick=function(){ $('#chatPanel').style.display='flex'; $('#chatInput').focus(); };
+    $('#chatBtnMobileQA').onclick=function(){ $('#chatPanel').style.display='flex'; $('#chatInput').focus(); $('#drawer').style.display='none'; };
+    $('#chatClose').onclick=function(){ $('#chatPanel').style.display='none'; };
+    $('#chatFullscreenToggle').onclick=function(){ $('#chatPanel').classList.toggle('fullscreen'); };
+    $('#chatInput').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } });
+
+    /* 기타 */
+    $('#newDocBtn').onclick=function(){ if(editor && editor.setData){ editor.setData(''); } try{ localStorage.removeItem(DRAFT_KEY); }catch(_){ } showToast(L.msg.newDoc); };
+    if($('#newDocCTA')) $('#newDocCTA').addEventListener('click',()=>$('#newDocBtn').click());
+    window.addEventListener('beforeunload', function(){ try{ localStorage.setItem(DRAFT_KEY, editor?.getData?.()||''); }catch(_){ } });
+  });
+
+  /* reCAPTCHA 콜백 (전역) */
+  function onSubmit(token){ const form=document.getElementById("demo-form"); if(form){ form.submit(); } showToast('reCAPTCHA verified'); }
+  window.onSubmit=onSubmit;
+  </script>
+
+  <!-- 설정 모달(마지막에 둬서 DOM 존재 보장) -->
   <div id="settingsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="card">
       <header>
@@ -433,248 +1032,5 @@ original_html = r"""<!DOCTYPE html>
       </div>
     </div>
   </div>
-
-  <!-- Gemini Chat -->
-  <div id="chatPanel" role="dialog" aria-label="Gemini Chat">
-    <div id="chatHeader">
-      <span id="chatTitle">💬 Gemini Chat</span>
-      <div class="right">
-        <button class="btn tiny" id="chatFullscreenToggle">⤢ Full</button>
-        <button class="btn tiny" id="chatClose">Close</button>
-      </div>
-    </div>
-    <div id="chatLog"></div>
-    <input id="chatInput" placeholder="Enter로 전송" aria-label="Chat Input"/>
-  </div>
-
-  <!-- External scripts kept minimal for demo -->
-  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js" async></script>
-  <link rel="stylesheet" href="assets/styles.css"/>
-  <script defer src="assets/app.js"></script>
 </body>
 </html>
-"""
-
-# Extract CSS and the main inline app script from the original
-style_match = re.search(r"<style>([\s\S]*?)</style>", original_html, re.IGNORECASE)
-css = style_match.group(1).strip() if style_match else ""
-
-# The original has multiple <script> blocks; we want the **last inline** one (the big app)
-script_blocks = re.findall(r"<script>([\s\S]*?)</script>", original_html, re.IGNORECASE)
-app_js = script_blocks[-1].strip() if script_blocks else ""
-
-# Prepare index.html with tightened CSP and removed sensitive scripts/meta
-index_html = original_html
-
-# 1) Replace CSP meta with a minimal safer one (no remote API endpoints)
-new_csp = (
-  '<meta http-equiv="Content-Security-Policy"\n'
-  '        content="\n'
-  "        default-src 'self';\n"
-  "        script-src 'self' https://cdn.ckeditor.com https://cdn.jsdelivr.net 'unsafe-inline';\n"
-  "        connect-src 'self';\n"
-  "        style-src 'self' 'unsafe-inline' https://cdn.ckeditor.com;\n"
-  "        img-src 'self' data:;\n"
-  "        object-src 'none';\n"
-  '        "/>'
-)
-index_html = re.sub(r'<meta http-equiv="Content-Security-Policy"[\s\S]*?/>', new_csp, index_html, flags=re.IGNORECASE)
-
-# 2) Remove GA/reCAPTCHA/GIS/Pay/Paddle external scripts
-patterns_to_remove = [
-    r'<script src="https://www\.google\.com/recaptcha/enterprise\.js[^"]*"></script>',
-    r'<script async src="https://pay\.google\.com/gp/p/js/pay\.js"></script>',
-    r'<script src="https://cdn\.paddle\.com/paddle/v2/paddle\.js" async></script>',
-    r'<script src="https://accounts\.google\.com/gsi/client" async defer></script>',
-    r'<script async src="https://www\.googletagmanager\.com/gtag/js\?id=[^"]+"></script>',
-]
-for pat in patterns_to_remove:
-    index_html = re.sub(pat, '', index_html)
-
-# 3) Remove the inline GA init block
-index_html = re.sub(
-    r"<script>\s*window\.dataLayer[\s\S]*?<\/script>",
-    "",
-    index_html,
-    flags=re.IGNORECASE
-)
-
-# 4) Remove the Google API key meta (Gemini key) and keep/neutralize client_id
-index_html = re.sub(
-    r'<meta name="google-api-key" content="[^"]*"\s*/?>',
-    '',
-    index_html,
-    flags=re.IGNORECASE
-)
-
-# 5) Replace the <style> with link to assets css
-if style_match:
-    index_html = index_html.replace(style_match.group(0), '<link rel="stylesheet" href="assets/styles.css"/>')
-
-# 6) Remove **all** inline <script> blocks EXCEPT we will add our external app.js at the end.
-#    We'll rebuild the end of body to include minimal externals only.
-# First, strip every <script>...</script> without src
-index_html = re.sub(r"<script>([\s\S]*?)</script>", "", index_html)
-# Also strip any previous CKEditor/DOMPurify tags; we will add them at the bottom in a clean block
-index_html = re.sub(r'<script[^>]*src="https://cdn\.ckeditor\.com[^"]*"[^>]*></script>', "", index_html)
-index_html = re.sub(r'<script[^>]*src="https://cdn\.jsdelivr\.net[^"]*"[^>]*></script>', "", index_html)
-
-# Add back minimal scripts and our external js before </body>
-index_html = index_html.replace(
-    "</body>",
-    (
-        '  <!-- External scripts kept minimal for demo -->\n'
-        '  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>\n'
-        '  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js" async></script>\n'
-        '  <script defer src="assets/app.js"></script>\n'
-        '</body>'
-    )
-)
-
-# 7) Patch the JS to disable API usage
-patched_js = app_js
-
-# Replace API_ORIGIN and apiUrl
-patched_js = re.sub(
-    r"const\s+API_ORIGIN\s*=\s*'[^']*';",
-    "const API_ORIGIN = null; const NO_API = true;",
-    patched_js
-)
-patched_js = re.sub(
-    r"const\s+apiUrl\s*=\s*\(p=''\)\s*=>\s*`[^`]+`;",
-    "const apiUrl = (p='') => '#';",
-    patched_js
-)
-
-# Patch sendChat() to a local stub
-def replace_function_js(src, func_name, new_body):
-    start = src.find(f"async function {func_name}(")
-    if start == -1:
-        return src  # nothing to do
-    brace_start = src.find("{", start)
-    if brace_start == -1:
-        return src
-    # Walk braces to find matching end
-    depth = 0
-    i = brace_start
-    while i < len(src):
-        c = src[i]
-        if c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                end = i
-                break
-        i += 1
-    else:
-        return src
-    new_func = f"async function {func_name}" + new_body
-    return src[:start] + new_func + src[end+1:]
-
-patched_js = replace_function_js(
-    patched_js,
-    "sendChat",
-    """(){
-  const v=$('#chatInput').value.trim(); if(!v) return;
-  appendChat('user',v); $('#chatInput').value='';
-  appendChat('ai','(데모) 서버 API가 비활성화되어 채팅 기능을 사용할 수 없어요.');
-}"""
-)
-
-# Patch doSearch() to open external search (no backend)
-patched_js = replace_function_js(
-    patched_js,
-    "doSearch",
-    """(preferNavigate=false){
-  const q=$('#searchInput').value.replace(/\\u00A0/g,' ').trim();
-  if(q.length<2) return showToast(L.msg.searchTooShort);
-  addHistory(q);
-  const url = 'https://duckduckgo.com/?q='+encodeURIComponent(q);
-  openExternal(url);
-}"""
-)
-
-# Patch detectLangByIP() to avoid ipapi call
-patched_js = replace_function_js(
-    patched_js,
-    "detectLangByIP",
-    """(){
-  const nav=(navigator.language||'en').slice(0,2).toLowerCase();
-  return ['ko','en','ja'].includes(nav)?nav:'en';
-}"""
-)
-
-# Also hide/disable buttons that previously relied on APIs at runtime
-extra_js = r"""
-// ===== NO-API DEMO PATCHES =====
-(function(){
-  try{
-    // Hide/disable API-related buttons
-    const hide = (sel)=>{ const el=document.querySelector(sel); if(el){ el.style.display='none'; } };
-    hide('#authBtn'); hide('#exportBtn'); hide('#recaptchaBtn');
-
-    // Add small badge to title
-    const h1 = document.getElementById('appTitle');
-    if(h1 && !/Demo/.test(h1.textContent)) h1.textContent = h1.textContent + ' — Demo (No API)';
-  }catch(e){}
-})();
-"""
-patched_js += "\n" + extra_js + "\n"
-
-# Write files
-with open(os.path.join(assets_dir, "styles.css"), "w", encoding="utf-8") as f:
-    f.write(css + "\n")
-
-with open(os.path.join(assets_dir, "app.js"), "w", encoding="utf-8") as f:
-    f.write(patched_js + "\n")
-
-with open(os.path.join(root, "index.html"), "w", encoding="utf-8") as f:
-    f.write(index_html)
-
-manifest = {
-    "name": "ThinkHelper 3.1 (Demo)",
-    "short_name": "ThinkHelper",
-    "display": "standalone",
-    "start_url": ".",
-    "background_color": "#ffffff",
-    "theme_color": "#1976d2",
-    "icons": []
-}
-with open(os.path.join(root, "manifest.json"), "w", encoding="utf-8") as f:
-    json.dump(manifest, f, ensure_ascii=False, indent=2)
-
-readme = textwrap.dedent("""
-# ThinkHelper 3.1 — GitHub Pages **No-API** Demo
-
-이 패키지는 공개 저장소에서 **Gemini/내 백엔드 API를 노출하지 않도록** 만들어진 데모 빌드입니다.
-- Chat(서버 호출), 내부 `/api/*` 검색, Google 로그인/Drive 내보내기, ipapi 기반 위치 감지, GA/reCAPTCHA/결제 관련 스크립트는 제거/비활성화했습니다.
-- 에디터, PII 마스킹, 로컬 저장(HTML/PDF), 다국어 UI 등은 그대로 동작합니다.
-
-## 사용법
-1. 이 폴더를 GitHub Pages로 배포하면 됩니다. (브랜치 `main`의 `/` 또는 `docs/`)
-2. `index.html`의 CSP는 데모에 맞게 최소화되어 있습니다.
-3. 다시 서버 API를 붙이고 싶다면 `assets/app.js`에서 아래만 되돌리면 됩니다.
-   - `const API_ORIGIN = null; const NO_API = true;` → 원래 API 엔드포인트로
-   - `sendChat`, `doSearch`, `detectLangByIP`의 데모 구현 → 원래 구현으로
-
-## 보안 메모
-- 이 빌드는 클라이언트에서 **어떠한 API 키도 포함하지 않습니다.**
-- 공개 저장소에선 API 키/비밀을 절대 커밋하지 마세요. 필요 시 서버(Cloud Run/Functions 등)에서만 보관하고, 프런트는 **토큰 없는 공개 엔드포인트를 호출하지 않도록** 하세요.
-
-즐 배포! 🚀
-""").strip()
-with open(os.path.join(root, "README.md"), "w", encoding="utf-8") as f:
-    f.write(readme + "\n")
-
-# Zip it
-zip_path = "/mnt/data/thinkhelper-pages-noapi.zip"
-with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
-    for folder_name, subfolders, filenames in os.walk(root):
-        for filename in filenames:
-            file_path = os.path.join(folder_name, filename)
-            arcname = os.path.relpath(file_path, root)
-            z.write(file_path, arcname)
-
-zip_path
